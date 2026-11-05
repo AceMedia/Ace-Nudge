@@ -101,20 +101,22 @@ class Ace_Nudge_Store {
 		$name  = Ace_Nudge_Settings::brand()['name'];
 		$words = apply_filters( 'ace_nudge_wording', array(
 			'push'  => "Send me browser notifications from $name about what I follow. I can turn them off at any time.",
+			'orders' => 'Send order updates for my purchases to this device.',
+			'product_updates' => 'Email me when something I\'ve bought is back in stock or drops in price. I can unsubscribe at any time.',
 			'reads' => 'Remembers which pages you open on this browser for 30 days, only to tell you when one changes.',
 			'email' => "Email me the $name newsletter. I can unsubscribe at any time using the link in every email.",
 		) );
 		return $words[ $channel ] ?? '';
 	}
 
-	public static function log( $subject, $channel, $action, $age_confirmed = false ) {
+	public static function log( $subject, $channel, $action, $age_confirmed = false, $wording = '' ) {
 		global $wpdb;
 		$wpdb->insert( self::t( 'consent_log' ), array(
 			'subject_hash'    => $subject,
 			'channel'         => $channel,
 			'action'          => $action,
 			'wording_version' => self::WORDING_VERSION,
-			'wording'         => self::wording( $channel ),
+			'wording'         => self::wording( $wording ?: $channel ),
 			'age_confirmed'   => $age_confirmed ? 1 : 0,
 			'created_at'      => current_time( 'mysql', true ),
 		) );

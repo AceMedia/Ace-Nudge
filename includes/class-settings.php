@@ -15,6 +15,9 @@ class Ace_Nudge_Settings {
 			'quiet_start' => 21,
 			'quiet_end'   => 8,
 			'auto_bar'    => 1,
+			'min_age'     => 0,
+			'order_statuses' => array( 'processing', 'completed', 'refunded', 'cancelled' ),
+			'wc_optional_emails' => array( 'customer_note' ),
 		) );
 	}
 
@@ -41,7 +44,7 @@ class Ace_Nudge_Settings {
 	}
 
 	public static function min_age() {
-		return max( 0, (int) apply_filters( 'ace_nudge_min_age', 0 ) );
+		return max( 0, (int) apply_filters( 'ace_nudge_min_age', (int) self::get( 'min_age' ) ) );
 	}
 
 	public static function brand() {

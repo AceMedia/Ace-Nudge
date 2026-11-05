@@ -58,3 +58,5 @@
 .ace-nudge-block { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
 .ace-nudge-block.has-text-align-center { justify-content: center; }
 .ace-nudge-block > button:not(.ace-nudge-follow) { min-height: 46px; padding: .6rem 1.25rem; border: 0; border-radius: .6rem; background: var(--ace-nudge-primary); color: #fff; font-weight: 700; cursor: pointer; }
+.ace-nudge-orders { margin: 1rem 0; padding: 1rem; border-radius: .5rem; background: var(--ace-nudge-page); }
+.ace-nudge-orders p { margin: 0 0 .5rem; }

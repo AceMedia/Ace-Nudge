@@ -138,7 +138,8 @@
 		year.input.focus();
 	};
 
-	const subscribePush = async () => {
+	const subscribePush = async (purpose) => {
+		const hadToken = !!store.get('token');
 		const permission = await Notification.requestPermission();
 		if (permission !== 'granted') throw { message: 'Notifications are blocked in your browser settings.' };
 		const reg = await navigator.serviceWorker.register(cfg.sw, { scope: '/' });
@@ -146,27 +147,38 @@
 		const key = Uint8Array.from(atob(cfg.vapid.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
 		const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
 		const json = sub.toJSON();
-		const res = await post('subscribe', { channel: 'push', consent: true, age_confirmed: true, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth });
+		const res = await post('subscribe', { channel: 'push', consent: true, age_confirmed: store.get('age') === 'yes' || !cfg.minAge, purpose, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth });
 		store.set('token', res.token);
+		// Order updates aren't consent to anything else, so remember what this one covers.
+		if (purpose === 'orders') { if (!store.get('scope')) store.set('scope', hadToken ? 'all' : 'orders'); } else store.set('scope', 'all');
 	};
 
 	const apply = (s) => { follows = s.follows; items = s.items || []; paint(); };
 	const follow = (t) => post('follow', { ...t, token: store.get('token') }).then(apply);
 	const notifyOn = () => pushable && !!store.get('token') && Notification.permission === 'granted';
+	const marketingOn = () => notifyOn() && store.get('scope') !== 'orders';
 
 	// Nobody logs in here, so follows belong to this browser's subscription. Following therefore
 	// starts by turning notifications on. The toggle starts off and covers this channel only.
-	const pushStep = (target) => {
+	const cantPush = () => {
 		const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 		if (ios && !navigator.standalone) {
-			return show(heading('Add us to your Home Screen'), lead('On iPhone and iPad, notifications only work once the site is on your Home Screen. Tap Share, choose Add to Home Screen, then open it from there and follow again.'), actions(closeBtn('Close')));
+			show(heading('Add us to your Home Screen'), lead('On iPhone and iPad, notifications only work once the site is on your Home Screen. Tap Share, choose Add to Home Screen, then open it from there and follow again.'), actions(closeBtn('Close')));
+			return true;
 		}
 		if (!pushable) {
-			return show(heading('Notifications aren\'t available'), lead('This browser doesn\'t support notifications from websites. You can still get the newsletter.'), actions(primary('Get the newsletter', () => newsletterStep()), closeBtn('Close')));
+			show(heading('Notifications aren\'t available'), lead('This browser doesn\'t support notifications from websites. You can still get the newsletter.'), actions(primary('Get the newsletter', () => newsletterStep()), closeBtn('Close')));
+			return true;
 		}
 		if (Notification.permission === 'denied') {
-			return show(heading('Notifications are blocked'), lead('You\'ve blocked notifications for this site. To follow anything, allow them in your browser\'s site settings, then try again.'), actions(closeBtn('Close')));
+			show(heading('Notifications are blocked'), lead('You\'ve blocked notifications for this site. To follow anything, allow them in your browser\'s site settings, then try again.'), actions(closeBtn('Close')));
+			return true;
 		}
+		return false;
+	};
+
+	const pushStep = (target) => {
+		if (cantPush()) return;
 		const consent = toggle('Turn on browser notifications', cfg.wording.push);
 		const error = errorBox();
 		show(el('form', { on: { submit: async (e) => {
@@ -280,7 +292,7 @@
 			lead(token ? 'Saved on this browser. Switch anything off here.' : 'Choose how you\'d like to hear from us.'),
 			rows.length ? el('div', { class: 'ace-nudge-following' }, ...rows) : '',
 			el('div', { class: 'ace-nudge-actions ace-nudge-stack' },
-				token && notifyOn() ? primary('Categories and whole site', () => interestsStep(null)) : primary('Turn on notifications', () => ageStep(() => pushStep(null))),
+				marketingOn() ? primary('Categories and whole site', () => interestsStep(null)) : primary('Turn on notifications', () => ageStep(() => pushStep(null))),
 				secondary('Get the newsletter', () => ageStep(newsletterStep)),
 				token ? secondary('Turn off and delete my subscription', async () => {
 					await post('withdraw', { token });
@@ -288,6 +300,7 @@
 					const sub = reg && await reg.pushManager.getSubscription();
 					if (sub) await sub.unsubscribe();
 					store.del('token');
+					store.del('scope');
 					follows = [];
 					items = [];
 					paint();
@@ -305,7 +318,7 @@
 
 	// A follow button that's already following opens the panel rather than quietly unfollowing.
 	const clicked = (t) => {
-		if (!notifyOn()) return ageStep(() => pushStep(t));
+		if (!marketingOn()) return ageStep(() => pushStep(t));
 		return follows.includes(t.key) ? manage(t) : follow(t);
 	};
 
@@ -334,6 +347,30 @@
 			}
 		}
 		paint();
+
+		document.querySelectorAll('[data-ace-nudge="orders"]').forEach((box) => {
+			const button = box.querySelector('button');
+			const note = box.querySelector('[data-ace-nudge-note]');
+			button.addEventListener('click', async () => {
+				if (cantPush()) return;
+				try {
+					button.disabled = true;
+					if (!notifyOn()) await subscribePush('orders');
+					const res = await fetch(cfg.rest + 'orders', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', ...(box.dataset.nonce ? { 'X-WP-Nonce': box.dataset.nonce } : {}) },
+						body: JSON.stringify({ token: store.get('token'), order_id: box.dataset.order, order_key: box.dataset.key }),
+					});
+					if (!res.ok) throw await res.json();
+					apply(await res.json());
+					note.textContent = 'Order updates are on for this device.';
+					button.hidden = true;
+				} catch (err) {
+					note.textContent = (err && err.message) || 'Something went wrong. Please try again.';
+					button.disabled = false;
+				}
+			});
+		});
 
 		const search = cfg.bell && document.querySelector(cfg.bell);
 		if (search) {

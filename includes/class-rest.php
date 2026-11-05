@@ -22,6 +22,7 @@ class Ace_Nudge_Rest {
 			'withdraw'  => 'withdraw',
 			'state'     => 'state',
 			'read'      => 'read',
+			'orders'    => 'orders',
 		) as $route => $cb ) {
 			register_rest_route( 'ace-nudge/v1', '/' . $route, array( 'methods' => 'POST', 'callback' => array( __CLASS__, $cb ), 'permission_callback' => $open ) );
 		}
@@ -41,7 +42,10 @@ class Ace_Nudge_Rest {
 		if ( self::limited( 'subscribe', 20 ) ) {
 			return new WP_Error( 'busy', 'Too many requests.', array( 'status' => 429 ) );
 		}
-		if ( true !== $r->get_param( 'age_confirmed' ) || true !== $r->get_param( 'consent' ) || '' !== (string) $r->get_param( 'website' ) ) {
+		// Order updates are about a purchase, not marketing, so they don't need the age check.
+		$orders_only = 'orders' === $r->get_param( 'purpose' ) && 'email' !== $r->get_param( 'channel' );
+		$age_ok      = $orders_only || ! Ace_Nudge_Settings::min_age() || true === $r->get_param( 'age_confirmed' );
+		if ( ! $age_ok || true !== $r->get_param( 'consent' ) || '' !== (string) $r->get_param( 'website' ) ) {
 			return new WP_Error( 'consent', 'Consent and age confirmation are required.', array( 'status' => 400 ) );
 		}
 		return 'email' === $r->get_param( 'channel' ) ? self::subscribe_email( $r ) : self::subscribe_push( $r );
@@ -67,7 +71,9 @@ class Ace_Nudge_Rest {
 			) );
 			$id = (int) $wpdb->insert_id;
 		}
-		Ace_Nudge_Store::log( $hash, 'push', 'granted', true );
+		'orders' === $r->get_param( 'purpose' )
+			? Ace_Nudge_Store::log( $hash, 'push', 'orders_on', false, 'orders' )
+			: Ace_Nudge_Store::log( $hash, 'push', 'granted', true );
 		return array( 'token' => Ace_Nudge_Store::token( $id ) );
 	}
 
@@ -204,10 +210,33 @@ class Ace_Nudge_Rest {
 		if ( 'post' === $f->type ) {
 			return array( 'key' => $key, 'type' => 'post', 'post_id' => (int) $f->object_id, 'label' => html_entity_decode( get_the_title( (int) $f->object_id ) ) );
 		}
+		if ( 'order' === $f->type ) {
+			return array( 'key' => $key, 'type' => 'order', 'label' => 'Updates for order #' . $f->object_id );
+		}
+		if ( 'customer' === $f->type ) {
+			return array( 'key' => $key, 'type' => 'customer', 'label' => 'Updates for my orders' );
+		}
 		if ( 'ptype' === $f->type && ( $object = get_post_type_object( $f->object_id ) ) ) {
 			return array( 'key' => $key, 'type' => 'ptype', 'id' => $f->object_id, 'label' => 'All ' . strtolower( $object->labels->name ) );
 		}
 		return null;
+	}
+
+	/** Tie this browser to one order (guests prove it with the order key) or to the signed-in customer. */
+	public static function orders( WP_REST_Request $r ) {
+		$sub = Ace_Nudge_Store::subscriber_from_token( $r->get_param( 'token' ) );
+		if ( ! $sub || ! function_exists( 'wc_get_order' ) ) {
+			return new WP_Error( 'orders', 'Could not turn on order updates.', array( 'status' => 400 ) );
+		}
+		$order = wc_get_order( (int) $r->get_param( 'order_id' ) );
+		if ( $order && hash_equals( $order->get_order_key(), (string) $r->get_param( 'order_key' ) ) ) {
+			self::add_follow( $sub->id, 'order', (string) $order->get_id(), array() );
+		} elseif ( get_current_user_id() ) {
+			self::add_follow( $sub->id, 'customer', (string) get_current_user_id(), array() );
+		} else {
+			return new WP_Error( 'orders', 'Could not turn on order updates.', array( 'status' => 403 ) );
+		}
+		return self::state( $r );
 	}
 
 	/** Only recorded for someone who switched on updates to stories they've read. */

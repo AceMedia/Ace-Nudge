@@ -101,7 +101,7 @@ class Ace_Nudge_Admin {
 		}
 		echo '</div>';
 
-		$kinds = array( 'category' => 'Categories', 'fixture' => 'Games', 'post' => 'Stories and products', 'ptype' => 'Whole post types', 'digest' => 'Newsletter frequency', 'read' => 'Reading history entries' );
+		$kinds = array( 'category' => 'Categories', 'fixture' => 'Games', 'post' => 'Stories and products', 'ptype' => 'Whole post types', 'order' => 'Single orders', 'customer' => 'All orders of a customer', 'wc' => 'Product emails', 'digest' => 'Newsletter frequency', 'read' => 'Reading history entries' );
 		$rows  = array();
 		foreach ( $wpdb->get_results( "SELECT type, COUNT(*) n, COUNT(DISTINCT subscriber_id) p FROM $f GROUP BY type ORDER BY n DESC" ) as $r ) {
 			$rows[] = array( esc_html( 'site' === $r->type ? 'Whole site and read updates' : ( $kinds[ $r->type ] ?? $r->type ) ), (int) $r->n, (int) $r->p );
@@ -187,7 +187,22 @@ class Ace_Nudge_Admin {
 		echo '</td></tr>';
 		printf( '<tr><th><label for="ace-nudge-cap">Most grouped alerts a day, per browser</label></th><td><input id="ace-nudge-cap" type="number" min="1" max="24" name="daily_cap" value="%d" class="small-text"><p class="description">Live game alerts aren\'t counted.</p></td></tr>', (int) $o['daily_cap'] );
 		printf( '<tr><th>Quiet hours (site time: London)</th><td><label>From <input type="number" min="0" max="23" name="quiet_start" value="%d" class="small-text">:00</label> <label>to <input type="number" min="0" max="23" name="quiet_end" value="%d" class="small-text">:00</label><p class="description">Grouped alerts wait until these end. Set both the same to turn this off.</p></td></tr>', (int) $o['quiet_start'], (int) $o['quiet_end'] );
+		$forced = Ace_Nudge_Settings::min_age() !== (int) $o['min_age'];
+		printf( '<tr><th><label for="ace-nudge-age">Age limit</label></th><td><input id="ace-nudge-age" type="number" min="0" max="99" name="min_age" value="%d" class="small-text"><p class="description">Asks for a year of birth before following or signing up. Use 0 for no age check. Order updates aren\'t age checked.%s</p></td></tr>', (int) $o['min_age'], $forced ? ' <strong>This site\'s code sets it to ' . (int) Ace_Nudge_Settings::min_age() . ', which takes priority.</strong>' : '' );
 		printf( '<tr><th>Follow buttons</th><td><label><input type="checkbox" name="auto_bar" value="1" %s> Add them to pages automatically</label><p class="description">A page with the Follow Button block always uses the block instead.</p></td></tr>', checked( ! empty( $o['auto_bar'] ), true, false ) );
+		if ( class_exists( 'WooCommerce' ) ) {
+			echo '<tr><th>Order updates on devices</th><td>';
+			foreach ( wc_get_order_statuses() as $status => $label ) {
+				$status = substr( $status, 3 );
+				printf( '<label style="display:block;margin:0 0 6px"><input type="checkbox" name="order_statuses[]" value="%s" %s> %s</label>', esc_attr( $status ), checked( in_array( $status, (array) $o['order_statuses'], true ), true, false ), esc_html( $label ) );
+			}
+			echo '</td></tr><tr><th>Emails customers can switch off</th><td>';
+			$optional = Ace_Nudge_Woo::optional_email_choices();
+			foreach ( $optional as $id => $title ) {
+				printf( '<label style="display:block;margin:0 0 6px"><input type="checkbox" name="wc_optional_emails[]" value="%s" %s> %s</label>', esc_attr( $id ), checked( in_array( $id, (array) $o['wc_optional_emails'], true ), true, false ), esc_html( $title ) );
+			}
+			echo '<p class="description">Order confirmations, invoices, refunds and password emails are always sent, so they aren\'t listed. Templates and sending stay in WooCommerce &gt; Settings &gt; Emails.</p></td></tr>';
+		}
 		echo '</table>';
 		// Without the suite's save bar, for example on a site without Ace Crawl Enhancer.
 		if ( ! wp_script_is( 'ace-savebar', 'enqueued' ) ) {
@@ -208,6 +223,9 @@ class Ace_Nudge_Admin {
 			'quiet_start' => $hour( 'quiet_start', 21 ),
 			'quiet_end'   => $hour( 'quiet_end', 8 ),
 			'auto_bar'    => empty( $_POST['auto_bar'] ) ? 0 : 1,
+			'min_age'     => min( 99, max( 0, (int) ( $_POST['min_age'] ?? 0 ) ) ),
+			'order_statuses' => array_map( 'sanitize_key', (array) ( $_POST['order_statuses'] ?? ( class_exists( 'WooCommerce' ) ? array() : Ace_Nudge_Settings::get( 'order_statuses' ) ) ) ),
+			'wc_optional_emails' => array_map( 'sanitize_key', (array) ( $_POST['wc_optional_emails'] ?? ( class_exists( 'WooCommerce' ) ? array() : Ace_Nudge_Settings::get( 'wc_optional_emails' ) ) ) ),
 		), false );
 		if ( ! empty( $_POST['ace_json'] ) ) {
 			wp_send_json_success( array( 'message' => 'Saved.', 'reload' => true ) );

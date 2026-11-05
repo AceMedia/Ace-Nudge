@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Ace NUDGE
  * Description: Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter: follow a story, product, category or game, or the whole site, with consent evidence and an admin overview.
- * Version: 0.2.0
+ * Version: 0.3.0
  * Author: Shane Rounce
  * Requires at least: 6.5
  * Requires PHP: 8.1
@@ -17,7 +17,7 @@
  *   on    open to visitors.
  *
  * Anything site-specific comes through filters, so regulated sites add their own rules:
- *   ace_nudge_min_age, ace_nudge_wording, ace_nudge_promo_pattern, ace_nudge_email_footer,
+ *   ace_nudge_min_age (overrides the setting), ace_nudge_wording, ace_nudge_promo_pattern, ace_nudge_email_footer,
  *   ace_nudge_brand, ace_nudge_bell_selector, ace_nudge_host_selector, ace_nudge_top_categories.
  *
  * An age question runs in the browser and only the fact that it was passed reaches the server.
@@ -25,11 +25,11 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'ACE_NUDGE_VERSION', '0.2.0' );
+define( 'ACE_NUDGE_VERSION', '0.3.0' );
 define( 'ACE_NUDGE_DIR', __DIR__ );
 define( 'ACE_NUDGE_URL', plugin_dir_url( __FILE__ ) );
 
-foreach ( array( 'settings', 'store', 'push', 'rest', 'dispatch', 'front', 'blocks', 'privacy' ) as $part ) {
+foreach ( array( 'settings', 'store', 'push', 'rest', 'dispatch', 'front', 'blocks', 'privacy', 'woo' ) as $part ) {
 	require_once __DIR__ . '/includes/class-' . $part . '.php';
 }
 if ( is_admin() ) {
@@ -53,4 +53,5 @@ if ( 'off' !== ace_nudge_mode() ) {
 	Ace_Nudge_Front::boot();
 	Ace_Nudge_Rest::boot();
 	Ace_Nudge_Dispatch::boot();
+	add_action( 'plugins_loaded', array( 'Ace_Nudge_Woo', 'boot' ) );
 }

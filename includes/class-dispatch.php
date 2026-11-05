@@ -48,7 +48,7 @@ class Ace_Nudge_Dispatch {
 		return in_array( strtolower( $email ), array_map( 'strtolower', $allowed ), true );
 	}
 
-	private static function deliver( $sub, array $message, $urgency = 'normal' ) {
+	public static function deliver( $sub, array $message, $urgency = 'normal' ) {
 		$status = Ace_Nudge_Push::send( $sub, $message, $urgency );
 		if ( $status >= 200 && $status < 300 ) {
 			self::count_sent( 'push' );
@@ -230,6 +230,7 @@ class Ace_Nudge_Dispatch {
 		update_option( 'ace_nudge_batch_since', time(), false );
 		$updated = (array) get_option( 'ace_nudge_updated', array() );
 		delete_option( 'ace_nudge_updated' );
+		do_action( 'ace_nudge_updates_ready', $updated );
 		$posts = get_posts( array(
 			'post_type' => Ace_Nudge_Settings::post_types(), 'post_status' => 'publish', 'posts_per_page' => 50, 'no_found_rows' => true,
 			'date_query' => array( array( 'after' => gmdate( 'Y-m-d H:i:s', $since ), 'column' => 'post_date_gmt' ) ),
@@ -328,6 +329,10 @@ class Ace_Nudge_Dispatch {
 				continue;
 			}
 			if ( ! self::email_allowed( $sub->email ) ) {
+				continue;
+			}
+			// A customer who only asked for product emails isn't on the newsletter.
+			if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM $follows WHERE subscriber_id = %d AND type = 'digest'", $sub->id ) ) ) {
 				continue;
 			}
 			$weekly = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM $follows WHERE subscriber_id = %d AND type = 'digest' AND object_id = 'weekly'", $sub->id ) );
