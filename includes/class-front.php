@@ -87,7 +87,7 @@ class Ace_Nudge_Front {
 	/** The main categories by posts. Older and newer terms can share a name, so those are merged. */
 	public static function top_categories() {
 		$top = array();
-		foreach ( get_terms( array( 'taxonomy' => Ace_Nudge_Settings::taxonomies() ?: array( 'category' ), 'parent' => 0, 'hide_empty' => true, 'orderby' => 'count', 'order' => 'DESC', 'number' => 30 ) ) as $term ) {
+		foreach ( get_terms( array( 'taxonomy' => Ace_Nudge_Settings::menu_taxonomies() ?: array( 'category' ), 'parent' => 0, 'hide_empty' => true, 'orderby' => 'count', 'order' => 'DESC', 'number' => 30 ) ) as $term ) {
 			$label = html_entity_decode( $term->name );
 			if ( 0 === stripos( $label, 'uncategori' ) ) {
 				continue;
@@ -119,8 +119,10 @@ class Ace_Nudge_Front {
 			foreach ( Ace_Nudge_Settings::taxonomies() as $tax ) {
 				if ( is_object_in_taxonomy( $type, $tax ) ) {
 					$terms = array_values( array_filter( (array) get_the_terms( $id, $tax ), fn( $t ) => $t instanceof WP_Term && 0 !== stripos( $t->name, 'uncategori' ) ) );
-					if ( $terms ) {
-						$targets[] = $term( $terms[0] );
+					// Some taxonomies, such as teams, get a button per term rather than just the main one.
+					$each = in_array( $tax, (array) apply_filters( 'ace_nudge_follow_every_term', array() ), true ) ? $terms : array_slice( $terms, 0, 1 );
+					foreach ( $each as $t ) {
+						$targets[] = $term( $t );
 					}
 				}
 			}

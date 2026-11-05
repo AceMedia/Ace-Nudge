@@ -210,6 +210,12 @@ class Ace_Nudge_Rest {
 		if ( 'post' === $f->type ) {
 			return array( 'key' => $key, 'type' => 'post', 'post_id' => (int) $f->object_id, 'label' => html_entity_decode( get_the_title( (int) $f->object_id ) ) );
 		}
+		if ( 'category' === $f->type ) {
+			$term = get_term( (int) $f->object_id );
+			return $term && ! is_wp_error( $term ) && ! in_array( $term->taxonomy, Ace_Nudge_Settings::menu_taxonomies(), true )
+				? array( 'key' => $key, 'type' => 'category', 'id' => $term->term_id, 'label' => html_entity_decode( $term->name ) )
+				: null;
+		}
 		if ( 'order' === $f->type ) {
 			return array( 'key' => $key, 'type' => 'order', 'label' => 'Updates for order #' . $f->object_id );
 		}

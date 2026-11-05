@@ -43,6 +43,11 @@ class Ace_Nudge_Settings {
 		return apply_filters( 'ace_nudge_taxonomies', $out );
 	}
 
+	/** Taxonomies offered as switches in the panel. Extras, such as teams, are followed from their buttons. */
+	public static function menu_taxonomies() {
+		return array_values( array_intersect( self::taxonomies(), array( 'category', 'product_cat' ) ) );
+	}
+
 	public static function min_age() {
 		return max( 0, (int) apply_filters( 'ace_nudge_min_age', (int) self::get( 'min_age' ) ) );
 	}
