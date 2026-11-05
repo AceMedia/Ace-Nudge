@@ -153,6 +153,7 @@ class Ace_Nudge_Front {
 			'targets' => $targets,
 			'categories' => self::top_categories(),
 			'ordersWording' => Ace_Nudge_Store::wording( 'orders' ),
+			'newsletter' => (bool) Ace_Nudge_Settings::get( 'newsletter' ),
 			'minAge'  => Ace_Nudge_Settings::min_age(),
 			'autoBar' => (bool) Ace_Nudge_Settings::get( 'auto_bar' ),
 			'name'    => Ace_Nudge_Settings::brand()['name'],

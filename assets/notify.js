@@ -167,7 +167,7 @@
 			return true;
 		}
 		if (!pushable) {
-			show(heading('Notifications aren\'t available'), lead('This browser doesn\'t support notifications from websites. You can still get the newsletter.'), actions(primary('Get the newsletter', () => newsletterStep()), closeBtn('Close')));
+			show(heading('Notifications aren\'t available'), lead('This browser doesn\'t support notifications from websites. '), actions(closeBtn('Close')));
 			return true;
 		}
 		if (Notification.permission === 'denied') {
@@ -226,8 +226,8 @@
 					for (const id of c.ids) await setFollow('category', id, input.checked, 'category:' + id);
 				}
 				paint();
-				show(heading('You\'re all set'), lead('We group things together so you don\'t get swamped, and live game alerts arrive as they happen. Want a round-up by email too?'),
-					actions(primary('Get the newsletter', () => newsletterStep()), closeBtn('Done')));
+				show(heading('You\'re all set'), lead('We group things together so you don\'t get swamped, and live game alerts arrive as they happen. '+(cfg.newsletter ? 'Want a round-up by email too?' : '')),
+					actions(cfg.newsletter ? primary('Get the newsletter', () => newsletterStep()) : '', closeBtn('Done')));
 			} catch (err) { fail(error, err); }
 		} } },
 			heading(target ? 'You\'re following ' + target.label : 'What do you want alerts about?'),
@@ -293,7 +293,7 @@
 			rows.length ? el('div', { class: 'ace-nudge-following' }, ...rows) : '',
 			el('div', { class: 'ace-nudge-actions ace-nudge-stack' },
 				marketingOn() ? primary('Categories and whole site', () => interestsStep(null)) : primary('Turn on notifications', () => ageStep(() => pushStep(null))),
-				secondary('Get the newsletter', () => ageStep(newsletterStep)),
+				cfg.newsletter ? secondary('Get the newsletter', () => ageStep(newsletterStep)) : '',
 				token ? secondary('Turn off and delete my subscription', async () => {
 					await post('withdraw', { token });
 					const reg = await navigator.serviceWorker.getRegistration();
@@ -425,7 +425,7 @@
 		const footer = cfg.footerAfter && document.querySelector(cfg.footerAfter);
 		if (footer) {
 			footer.after(el('p', { class: 'ace-nudge-footer' },
-				el('button', { type: 'button', on: { click: () => ageStep(newsletterStep) } }, 'Newsletter'), ' ',
+				cfg.newsletter ? el('button', { type: 'button', on: { click: () => ageStep(newsletterStep) } }, 'Newsletter') : '', ' ',
 				el('button', { type: 'button', on: { click: () => manage() } }, 'Browser alerts')));
 		}
 		document.body.append(dialog);

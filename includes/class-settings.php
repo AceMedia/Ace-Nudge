@@ -9,7 +9,7 @@ class Ace_Nudge_Settings {
 	const OPTION = 'ace_nudge_settings';
 
 	public static function all() {
-		return wp_parse_args( (array) get_option( self::OPTION, array() ), array(
+		return wp_parse_args( (array) get_option( self::OPTION, array() ), apply_filters( 'ace_nudge_defaults', array(
 			'post_types'  => array( 'post' ),
 			'daily_cap'   => 3,
 			'quiet_start' => 21,
@@ -18,7 +18,8 @@ class Ace_Nudge_Settings {
 			'min_age'     => 0,
 			'order_statuses' => array( 'processing', 'completed', 'refunded', 'cancelled' ),
 			'wc_optional_emails' => array( 'customer_note' ),
-		) );
+			'newsletter'  => 1,
+		) ) );
 	}
 
 	public static function get( $key ) {

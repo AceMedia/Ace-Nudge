@@ -189,6 +189,7 @@ class Ace_Nudge_Admin {
 		printf( '<tr><th>Quiet hours (site time: London)</th><td><label>From <input type="number" min="0" max="23" name="quiet_start" value="%d" class="small-text">:00</label> <label>to <input type="number" min="0" max="23" name="quiet_end" value="%d" class="small-text">:00</label><p class="description">Grouped alerts wait until these end. Set both the same to turn this off.</p></td></tr>', (int) $o['quiet_start'], (int) $o['quiet_end'] );
 		$forced = Ace_Nudge_Settings::min_age() !== (int) $o['min_age'];
 		printf( '<tr><th><label for="ace-nudge-age">Age limit</label></th><td><input id="ace-nudge-age" type="number" min="0" max="99" name="min_age" value="%d" class="small-text"><p class="description">Asks for a year of birth before following or signing up. Use 0 for no age check. Order updates aren\'t age checked.%s</p></td></tr>', (int) $o['min_age'], $forced ? ' <strong>This site\'s code sets it to ' . (int) Ace_Nudge_Settings::min_age() . ', which takes priority.</strong>' : '' );
+		printf( '<tr><th>Newsletter</th><td><label><input type="checkbox" name="newsletter" value="1" %s> Offer the newsletter sign-up</label><p class="description">Switch off if the site has its own newsletter.</p></td></tr>', checked( ! empty( $o['newsletter'] ), true, false ) );
 		printf( '<tr><th>Follow buttons</th><td><label><input type="checkbox" name="auto_bar" value="1" %s> Add them to pages automatically</label><p class="description">A page with the Follow Button block always uses the block instead.</p></td></tr>', checked( ! empty( $o['auto_bar'] ), true, false ) );
 		if ( class_exists( 'WooCommerce' ) ) {
 			echo '<tr><th>Order updates on devices</th><td>';
@@ -223,6 +224,7 @@ class Ace_Nudge_Admin {
 			'quiet_start' => $hour( 'quiet_start', 21 ),
 			'quiet_end'   => $hour( 'quiet_end', 8 ),
 			'auto_bar'    => empty( $_POST['auto_bar'] ) ? 0 : 1,
+			'newsletter'  => empty( $_POST['newsletter'] ) ? 0 : 1,
 			'min_age'     => min( 99, max( 0, (int) ( $_POST['min_age'] ?? 0 ) ) ),
 			'order_statuses' => array_map( 'sanitize_key', (array) ( $_POST['order_statuses'] ?? ( class_exists( 'WooCommerce' ) ? array() : Ace_Nudge_Settings::get( 'order_statuses' ) ) ) ),
 			'wc_optional_emails' => array_map( 'sanitize_key', (array) ( $_POST['wc_optional_emails'] ?? ( class_exists( 'WooCommerce' ) ? array() : Ace_Nudge_Settings::get( 'wc_optional_emails' ) ) ) ),
