@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Ace NUDGE
  * Description: Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter: follow a story, product, category or game, or the whole site, with consent evidence and an admin overview.
- * Version: 0.3.0
+ * Version: 0.3.1
  * Author: Shane Rounce
  * Requires at least: 6.5
  * Requires PHP: 8.1

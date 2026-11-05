@@ -60,3 +60,13 @@
 .ace-nudge-block > button:not(.ace-nudge-follow) { min-height: 46px; padding: .6rem 1.25rem; border: 0; border-radius: .6rem; background: var(--ace-nudge-primary); color: #fff; font-weight: 700; cursor: pointer; }
 .ace-nudge-orders { margin: 1rem 0; padding: 1rem; border-radius: .5rem; background: var(--ace-nudge-page); }
 .ace-nudge-orders p { margin: 0 0 .5rem; }
+.ace-nudge-bar.has-sides { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.ace-nudge-bar.has-sides [data-side="home"] { justify-self: start; }
+.ace-nudge-bar.has-sides [data-side="centre"] { justify-self: center; }
+.ace-nudge-bar.has-sides [data-side="away"] { justify-self: end; }
+.ace-nudge-bar.has-sides .ace-nudge-follow:not([data-side]) { grid-column: 1 / -1; justify-self: center; }
+@media (max-width: 600px) {
+	.ace-nudge-bar.has-sides { grid-template-columns: 1fr 1fr; }
+	.ace-nudge-bar.has-sides [data-side="centre"] { grid-column: 1 / -1; grid-row: 2; }
+	.ace-nudge-bar.has-sides [data-side="home"], .ace-nudge-bar.has-sides [data-side="away"] { width: 100%; justify-self: stretch; }
+}

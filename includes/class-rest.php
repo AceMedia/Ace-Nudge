@@ -161,6 +161,13 @@ class Ace_Nudge_Rest {
 			return new WP_Error( 'follow', 'You are following the maximum number of things.', array( 'status' => 400 ) );
 		}
 		self::add_follow( $sub->id, $target[0], $target[1], $target[2] );
+		// Following a team from a game's page also covers that game's kick-off and score alerts.
+		if ( 'category' === $target[0] && $r->get_param( 'post_id' ) ) {
+			$fixture = Ace_Nudge_Front::fixture_for_post( (int) $r->get_param( 'post_id' ) );
+			if ( $fixture ) {
+				self::add_follow( $sub->id, 'fixture', $fixture['id'], $fixture );
+			}
+		}
 		if ( 'site' === $target[0] && 'reads' === $target[1] ) {
 			Ace_Nudge_Store::log( $sub->endpoint_hash, 'push', 'reads_on', true );
 		}

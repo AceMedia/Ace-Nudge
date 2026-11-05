@@ -324,6 +324,7 @@
 
 	const followButton = (t) => {
 		const b = el('button', { type: 'button', class: 'ace-nudge-follow', on: { click: () => clicked(t) } });
+		if (t.side) b.dataset.side = t.side;
 		buttons.push([b, t]);
 		return b;
 	};
@@ -338,6 +339,7 @@
 			const host = (cfg.host && document.querySelector(cfg.host))
 				|| document.querySelector(single ? '.wp-block-post-title, h1' : '.wp-block-query-title, h1');
 			const bar = el('div', { class: 'ace-nudge-bar' }, ...cfg.targets.map(followButton));
+			if (cfg.targets.some((t) => t.side)) bar.classList.add('has-sides');
 			if (host) {
 				host.after(bar);
 				// Archive headers sit centred in their cover, so the button follows them.
