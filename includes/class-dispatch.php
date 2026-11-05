@@ -98,7 +98,7 @@ class Ace_Nudge_Dispatch {
 				}
 			}
 			if ( 'post' === $now['state'] ) {
-				$wpdb->delete( $follows, array( 'type' => 'fixture', 'object_id' => $fid ) );
+				$wpdb->delete( $follows, array( 'type' => 'fixture', 'object_id' => $fid ), array( '%s', '%s' ) );
 				unset( $seen[ $fid ] );
 			}
 		}
@@ -207,8 +207,10 @@ class Ace_Nudge_Dispatch {
 		}
 		$reason = self::product_reason( $product->get_data(), $product->get_changes() );
 		if ( $reason ) {
-			$queue                        = (array) get_option( 'ace_nudge_updated', array() );
-			$queue[ $product->get_id() ] = $reason;
+			// People follow and buy the parent, whichever variation changed.
+			$queue         = (array) get_option( 'ace_nudge_updated', array() );
+			$id            = $product->get_parent_id() ?: $product->get_id();
+			$queue[ $id ] = $reason;
 			update_option( 'ace_nudge_updated', $queue, false );
 		}
 	}

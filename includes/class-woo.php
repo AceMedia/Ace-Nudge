@@ -75,7 +75,7 @@ class Ace_Nudge_Woo {
 			Ace_Nudge_Dispatch::deliver( $sub, self::status_message( $order, $to ), 'high' );
 		}
 		if ( in_array( $to, array( 'completed', 'refunded', 'cancelled' ), true ) ) {
-			$wpdb->delete( $f, array( 'type' => 'order', 'object_id' => (string) $order_id ) );
+			$wpdb->delete( $f, array( 'type' => 'order', 'object_id' => (string) $order_id ), array( '%s', '%s' ) );
 		}
 	}
 
@@ -143,7 +143,7 @@ class Ace_Nudge_Woo {
 		$sub  = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $s WHERE endpoint_hash = %s", $hash ) );
 		if ( ! $on ) {
 			if ( $sub && self::product_subscriber( $email ) ) {
-				$wpdb->delete( $f, array( 'subscriber_id' => $sub->id, 'type' => 'wc', 'object_id' => 'product_updates' ) );
+				$wpdb->delete( $f, array( 'subscriber_id' => $sub->id, 'type' => 'wc', 'object_id' => 'product_updates' ), array( '%d', '%s', '%s' ) );
 				Ace_Nudge_Store::log( $hash, 'email', 'product_updates_off', false, 'product_updates' );
 			}
 			return;
@@ -157,7 +157,8 @@ class Ace_Nudge_Woo {
 		} else {
 			$id = (int) $sub->id;
 		}
-		$wpdb->insert( $f, array( 'subscriber_id' => $id, 'type' => 'wc', 'object_id' => 'product_updates', 'meta' => '[]', 'created_at' => current_time( 'mysql', true ) ) );
+		// WordPress treats a column called object_id as a number unless told otherwise.
+		$wpdb->insert( $f, array( 'subscriber_id' => $id, 'type' => 'wc', 'object_id' => 'product_updates', 'meta' => '[]', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%s', '%s', '%s', '%s' ) );
 		Ace_Nudge_Store::log( $hash, 'email', 'product_updates_on', false, 'product_updates' );
 	}
 

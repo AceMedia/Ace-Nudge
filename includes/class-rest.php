@@ -184,7 +184,7 @@ class Ace_Nudge_Rest {
 		if ( ! $sub || ! $target ) {
 			return new WP_Error( 'follow', 'Could not unfollow that.', array( 'status' => 400 ) );
 		}
-		$wpdb->delete( Ace_Nudge_Store::t( 'follows' ), array( 'subscriber_id' => $sub->id, 'type' => $target[0], 'object_id' => $target[1] ) );
+		$wpdb->delete( Ace_Nudge_Store::t( 'follows' ), array( 'subscriber_id' => $sub->id, 'type' => $target[0], 'object_id' => $target[1] ), array( '%d', '%s', '%s' ) );
 		// Switching this off forgets what was read, not just stops collecting it.
 		if ( 'site' === $target[0] && 'reads' === $target[1] ) {
 			$wpdb->delete( Ace_Nudge_Store::t( 'follows' ), array( 'subscriber_id' => $sub->id, 'type' => 'read' ) );
