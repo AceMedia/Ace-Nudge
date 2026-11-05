@@ -226,7 +226,7 @@
 					for (const id of c.ids) await setFollow('category', id, input.checked, 'category:' + id);
 				}
 				paint();
-				show(heading('You\'re all set'), lead('We group things together so you don\'t get swamped, and live game alerts arrive as they happen. '+(cfg.newsletter ? 'Want a round-up by email too?' : '')),
+				show(heading('You\'re all set'), lead('We group things together so you don\'t get swamped. '+(cfg.newsletter ? 'Want a round-up by email too?' : '')),
 					actions(cfg.newsletter ? primary('Get the newsletter', () => newsletterStep()) : '', closeBtn('Done')));
 			} catch (err) { fail(error, err); }
 		} } },
