@@ -348,10 +348,40 @@
 		}
 		paint();
 
+		// A tick at checkout or sign-up. The browser only allows the question on a click, so it's asked
+		// now, and the order or account is linked on the next page.
+		const deviceTick = async (e) => {
+			const box = e.target.closest('[data-ace-nudge="device"]');
+			if (!box || e.target.type !== 'checkbox') return;
+			const note = box.querySelector('[data-ace-nudge-note]');
+			if (!e.target.checked) { store.del('link'); note.textContent = ''; return; }
+			try {
+				if (!notifyOn()) await subscribePush('orders');
+				store.set('link', '1');
+				note.textContent = ' Order updates will start with your next order.';
+			} catch (err) {
+				e.target.checked = false;
+				note.textContent = ' ' + ((err && err.message) || 'This browser can\'t do that.');
+			}
+		};
+		document.addEventListener('change', deviceTick);
+
+		// Block checkout is drawn by its own script, so the tick joins once its buttons appear.
+		if (document.querySelector('.wp-block-woocommerce-checkout') && pushable && Notification.permission !== 'denied') {
+			const place = () => {
+				const actions = document.querySelector('.wc-block-checkout__actions');
+				if (!actions || document.querySelector('[data-ace-nudge="device"]')) return;
+				actions.before(el('p', { class: 'ace-nudge-tick', 'data-ace-nudge': 'device' },
+					el('label', {}, el('input', { type: 'checkbox' }), ' ', cfg.ordersWording), el('span', { 'data-ace-nudge-note': '', role: 'status' })));
+			};
+			new MutationObserver(place).observe(document.body, { childList: true, subtree: true });
+			place();
+		}
+
 		document.querySelectorAll('[data-ace-nudge="orders"]').forEach((box) => {
 			const button = box.querySelector('button');
 			const note = box.querySelector('[data-ace-nudge-note]');
-			button.addEventListener('click', async () => {
+			const turnOn = async () => {
 				if (cantPush()) return;
 				try {
 					button.disabled = true;
@@ -369,8 +399,21 @@
 					note.textContent = (err && err.message) || 'Something went wrong. Please try again.';
 					button.disabled = false;
 				}
-			});
+			};
+			button.addEventListener('click', turnOn);
+			// Ticked at checkout or sign-up, so finish the job without asking again.
+			if (store.get('link') && notifyOn()) {
+				store.del('link');
+				turnOn();
+			}
 		});
+		// Nothing to suggest where it's on already, or where the browser can't do it.
+		const prompts = () => document.querySelectorAll('[data-ace-nudge="orders"]').forEach((box) => {
+			const on = box.dataset.order ? follows.includes('order:' + box.dataset.order) : follows.some((f) => f.startsWith('customer:'));
+			if ((on || !pushable || Notification.permission === 'denied') && !box.querySelector('button').hidden) box.hidden = true;
+		});
+		prompts();
+		document.querySelectorAll('[data-ace-nudge="device"]').forEach((box) => { if (!pushable || Notification.permission === 'denied') box.hidden = true; });
 
 		const search = cfg.bell && document.querySelector(cfg.bell);
 		if (search) {
@@ -395,6 +438,7 @@
 		} else if (token) post('state', { token }).then((s) => {
 			if (!s.subscribed) store.del('token');
 			apply(s);
+			prompts();
 			if (cfg.post_id && follows.includes('site:reads')) post('read', { token, post_id: cfg.post_id }).catch(() => {});
 		}).catch(() => {});
 	};

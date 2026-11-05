@@ -19,7 +19,12 @@ class Ace_Nudge_Woo {
 		add_action( 'woocommerce_thankyou', array( __CLASS__, 'thankyou_prompt' ), 5 );
 		add_action( 'woocommerce_edit_account_form', array( __CLASS__, 'account_fields' ) );
 		add_action( 'woocommerce_save_account_details', array( __CLASS__, 'save_account' ) );
-		add_action( 'woocommerce_review_order_before_submit', array( __CLASS__, 'checkout_field' ) );
+		// After customer details, because the payment section is replaced whenever checkout refreshes.
+		add_action( 'woocommerce_checkout_after_customer_details', array( __CLASS__, 'checkout_field' ) );
+		add_action( 'woocommerce_register_form', array( __CLASS__, 'register_fields' ) );
+		add_action( 'woocommerce_created_customer', array( __CLASS__, 'created_customer' ) );
+		add_action( 'woocommerce_account_dashboard', array( __CLASS__, 'account_prompt' ) );
+		add_action( 'woocommerce_view_order', array( __CLASS__, 'account_prompt' ), 5 );
 		add_action( 'woocommerce_checkout_order_processed', array( __CLASS__, 'classic_checkout' ), 10, 1 );
 		add_action( 'woocommerce_store_api_checkout_order_processed', array( __CLASS__, 'block_checkout' ) );
 		add_action( 'woocommerce_init', array( __CLASS__, 'block_field' ) );
@@ -156,8 +161,36 @@ class Ace_Nudge_Woo {
 		Ace_Nudge_Store::log( $hash, 'email', 'product_updates_on', false, 'product_updates' );
 	}
 
-	public static function checkout_field() {
+	/**
+	 * Ticking asks the browser straight away, as it only allows that on a click. The device is
+	 * tied to the order or account on the next page, once one exists.
+	 */
+	private static function device_tick() {
+		printf( '<p class="form-row ace-nudge-tick" data-ace-nudge="device"><label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox"><input type="checkbox" class="woocommerce-form__input woocommerce-form__input-checkbox"> <span>%s</span></label><span data-ace-nudge-note role="status"></span></p>', esc_html( Ace_Nudge_Store::wording( 'orders' ) ) );
+	}
+
+	private static function product_tick() {
 		printf( '<p class="form-row"><label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox"><input type="checkbox" class="woocommerce-form__input woocommerce-form__input-checkbox" name="ace_nudge_product_updates" value="1"> <span>%s</span></label></p>', esc_html( Ace_Nudge_Store::wording( 'product_updates' ) ) );
+	}
+
+	public static function register_fields() {
+		self::device_tick();
+		self::product_tick();
+	}
+
+	public static function created_customer( $customer_id ) {
+		if ( ! empty( $_POST['ace_nudge_product_updates'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- WooCommerce checks the form's nonce.
+			self::set_product_updates( (string) get_userdata( $customer_id )->user_email, true );
+		}
+	}
+
+	public static function account_prompt() {
+		self::device_button( array( 'nonce' => wp_create_nonce( 'wp_rest' ) ) );
+	}
+
+	public static function checkout_field() {
+		self::device_tick();
+		self::product_tick();
 	}
 
 	public static function classic_checkout( $order_id ) {
