@@ -1,0 +1,28 @@
+{
+ "$schema": "https://schemas.wp.org/trunk/block.json",
+ "apiVersion": 3,
+ "name": "ace-nudge/alerts-button",
+ "title": "Alerts Button",
+ "category": "widgets",
+ "icon": "bell",
+ "description": "Opens the panel to turn on browser notifications and manage follows.",
+ "textdomain": "ace-nudge",
+ "attributes": {
+  "label": {
+   "type": "string",
+   "default": "Get alerts"
+  }
+ },
+ "supports": {
+  "align": [
+   "left",
+   "center",
+   "right"
+  ],
+  "spacing": {
+   "margin": true
+  },
+  "html": false
+ },
+ "editorScript": "ace-nudge-blocks"
+}
