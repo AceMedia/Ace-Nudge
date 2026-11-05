@@ -11,12 +11,26 @@ class Ace_Nudge_Admin {
 
 	public static function boot() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'savebar' ), 99 );
 		add_action( 'admin_post_ace_nudge_save', array( __CLASS__, 'save' ) );
 		add_action( 'admin_post_ace_nudge_remove', array( __CLASS__, 'remove' ) );
 	}
 
 	public static function menu() {
 		add_menu_page( 'Ace NUDGE', 'Ace NUDGE', 'manage_options', self::SLUG, array( __CLASS__, 'page' ), 'dashicons-bell', 58 );
+	}
+
+	/** The suite's save bar ships with Ace Crawl Enhancer, which only registers it on its own screens. */
+	public static function savebar( $hook ) {
+		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
+			return;
+		}
+		if ( ! wp_script_is( 'ace-savebar', 'registered' ) && defined( 'ACE_SEO_URL' ) && defined( 'ACE_SEO_PATH' ) && file_exists( ACE_SEO_PATH . 'build/savebar.js' ) ) {
+			wp_register_script( 'ace-savebar', ACE_SEO_URL . 'build/savebar.js', array( 'jquery' ), ACE_NUDGE_VERSION, true );
+		}
+		if ( wp_script_is( 'ace-savebar', 'registered' ) ) {
+			wp_enqueue_script( 'ace-savebar' );
+		}
 	}
 
 	private static function count( $sql ) {
@@ -108,8 +122,10 @@ class Ace_Nudge_Admin {
 				} elseif ( 'digest' === $type ) {
 					$name = ucfirst( $name );
 				}
-				$rows[] = array( 'post' === $type ? $name : esc_html( $name ), (int) $r->n );
+				$key          = wp_strip_all_tags( $name );
+				$rows[ $key ] = array( 'post' === $type ? $name : esc_html( $name ), (int) $r->n + (int) ( $rows[ $key ][1] ?? 0 ) );
 			}
+			$rows = array_values( $rows );
 			echo '<h2>' . esc_html( $label ) . '</h2>';
 			self::table( array( 'Name', 'Followers' ), $rows );
 		};
@@ -156,7 +172,6 @@ class Ace_Nudge_Admin {
 	}
 
 	private static function tab_settings() {
-		wp_enqueue_script( 'ace-savebar' );
 		$o = Ace_Nudge_Settings::all();
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-ace-savebar="admin-post" data-ace-savebar-autosave="0" data-ace-savebar-reload="1">';
 		echo '<input type="hidden" name="action" value="ace_nudge_save">';
@@ -173,10 +188,12 @@ class Ace_Nudge_Admin {
 		printf( '<tr><th><label for="ace-nudge-cap">Most grouped alerts a day, per browser</label></th><td><input id="ace-nudge-cap" type="number" min="1" max="24" name="daily_cap" value="%d" class="small-text"><p class="description">Live game alerts aren\'t counted.</p></td></tr>', (int) $o['daily_cap'] );
 		printf( '<tr><th>Quiet hours (site time: London)</th><td><label>From <input type="number" min="0" max="23" name="quiet_start" value="%d" class="small-text">:00</label> <label>to <input type="number" min="0" max="23" name="quiet_end" value="%d" class="small-text">:00</label><p class="description">Grouped alerts wait until these end. Set both the same to turn this off.</p></td></tr>', (int) $o['quiet_start'], (int) $o['quiet_end'] );
 		printf( '<tr><th>Follow buttons</th><td><label><input type="checkbox" name="auto_bar" value="1" %s> Add them to pages automatically</label><p class="description">A page with the Follow Button block always uses the block instead.</p></td></tr>', checked( ! empty( $o['auto_bar'] ), true, false ) );
-		echo '</table></form>';
-		if ( ! wp_script_is( 'ace-savebar', 'registered' ) ) {
-			echo '<p class="notice notice-warning" style="padding:8px">The shared save bar comes from Ace Crawl Enhancer, which isn\'t active, so settings can\'t be saved here.</p>';
+		echo '</table>';
+		// Without the suite's save bar, for example on a site without Ace Crawl Enhancer.
+		if ( ! wp_script_is( 'ace-savebar', 'enqueued' ) ) {
+			submit_button();
 		}
+		echo '</form>';
 	}
 
 	public static function save() {
