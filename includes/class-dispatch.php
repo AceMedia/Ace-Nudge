@@ -227,6 +227,7 @@ class Ace_Nudge_Dispatch {
 		$follows = Ace_Nudge_Store::t( 'follows' );
 		$subs    = Ace_Nudge_Store::t( 'subscribers' );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM $follows WHERE type = 'read' AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
+		self::purge_lapsed();
 
 		$since = (int) get_option( 'ace_nudge_batch_since', time() - HOUR_IN_SECONDS );
 		update_option( 'ace_nudge_batch_since', time(), false );
@@ -262,6 +263,19 @@ class Ace_Nudge_Dispatch {
 			$msg = self::batch_message( explode( ',', $sub->wants ), $fresh, $by_cat, $updated );
 			if ( $msg && self::deliver( $sub, $msg ) ) {
 				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $sent + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $sub->id ) );
+			}
+		}
+	}
+
+	/** Follows made for a set number of days (meta.until) end quietly when their time is up. */
+	public static function purge_lapsed() {
+		global $wpdb;
+		$follows = Ace_Nudge_Store::t( 'follows' );
+		$rows    = $wpdb->get_results( "SELECT id, meta FROM $follows WHERE meta LIKE '%\"until\"%'" );
+		foreach ( $rows as $row ) {
+			$meta = json_decode( (string) $row->meta, true );
+			if ( ! empty( $meta['until'] ) && (int) $meta['until'] < time() ) {
+				$wpdb->delete( $follows, array( 'id' => $row->id ), array( '%d' ) );
 			}
 		}
 	}

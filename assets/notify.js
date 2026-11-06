@@ -310,11 +310,15 @@
 	};
 
 	const buttons = [];
-	const paint = () => buttons.forEach(([b, t]) => {
-		const on = follows.includes(t.key);
-		b.textContent = (on ? 'Following ' : 'Follow ') + t.label;
-		b.setAttribute('aria-pressed', String(on));
-	});
+	const listeners = [];
+	const paint = () => {
+		buttons.forEach(([b, t]) => {
+			const on = follows.includes(t.key);
+			b.textContent = (on ? 'Following ' : 'Follow ') + t.label;
+			b.setAttribute('aria-pressed', String(on));
+		});
+		listeners.forEach((f) => { try { f(follows.slice()); } catch (e) {} });
+	};
 
 	// A follow button that's already following opens the panel rather than quietly unfollowing.
 	const clicked = (t) => {
@@ -327,6 +331,16 @@
 		if (t.side) b.dataset.side = t.side;
 		buttons.push([b, t]);
 		return b;
+	};
+
+	// Other scripts on the page (the bet calculator's slip) can follow through the same flow:
+	// age check, notification permission, then the follow. `days` on a target makes it lapse.
+	cfg.api = {
+		follow: (t) => clicked(t),
+		unfollow: (t) => post('unfollow', { key: t.key, token: store.get('token') }).then(apply),
+		following: (key) => follows.includes(key),
+		on: (f) => { listeners.push(f); return () => listeners.splice(listeners.indexOf(f), 1); },
+		manage: () => manage(),
 	};
 
 	const mount = () => {

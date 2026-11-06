@@ -160,7 +160,13 @@ class Ace_Nudge_Rest {
 		if ( $count >= self::MAX_FOLLOWS ) {
 			return new WP_Error( 'follow', 'You are following the maximum number of things.', array( 'status' => 400 ) );
 		}
-		self::add_follow( $sub->id, $target[0], $target[1], $target[2] );
+		// A follow can be for a while only (the calculator follows a team for a week after a bet).
+		$days = (int) $r->get_param( 'days' );
+		$meta = $target[2];
+		if ( $days > 0 ) {
+			$meta['until'] = time() + min( 30, $days ) * DAY_IN_SECONDS;
+		}
+		self::add_follow( $sub->id, $target[0], $target[1], $meta );
 		// Following a team from a game's page also covers that game's kick-off and score alerts.
 		if ( 'category' === $target[0] && $r->get_param( 'post_id' ) ) {
 			$fixture = Ace_Nudge_Front::fixture_for_post( (int) $r->get_param( 'post_id' ) );
