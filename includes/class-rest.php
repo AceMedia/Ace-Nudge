@@ -23,6 +23,8 @@ class Ace_Nudge_Rest {
 			'state'     => 'state',
 			'read'      => 'read',
 			'orders'    => 'orders',
+			'slip'      => 'slip',
+			'slip_done' => 'slip_done',
 		) as $route => $cb ) {
 			register_rest_route( 'ace-nudge/v1', '/' . $route, array( 'methods' => 'POST', 'callback' => array( __CLASS__, $cb ), 'permission_callback' => $open ) );
 		}
@@ -156,7 +158,7 @@ class Ace_Nudge_Rest {
 		if ( ! $sub || ! $target ) {
 			return new WP_Error( 'follow', 'Could not follow that.', array( 'status' => 400 ) );
 		}
-		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Ace_Nudge_Store::t( 'follows' ) . " WHERE subscriber_id = %d AND type <> 'read'", $sub->id ) );
+		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Ace_Nudge_Store::t( 'follows' ) . " WHERE subscriber_id = %d AND type NOT IN ('read','slip')", $sub->id ) );
 		if ( $count >= self::MAX_FOLLOWS ) {
 			return new WP_Error( 'follow', 'You are following the maximum number of things.', array( 'status' => 400 ) );
 		}
@@ -199,13 +201,68 @@ class Ace_Nudge_Rest {
 		return self::state( $r );
 	}
 
+	/**
+	 * The bet slip dock keeps a person's picks on their device; with notifications on it sends a
+	 * summary here so they can be reminded: half an hour after the last change if nothing was
+	 * placed, and fifteen minutes before the first game or race on it. Nothing is placed from here.
+	 */
+	public static function slip( WP_REST_Request $r ) {
+		global $wpdb;
+		$sub = Ace_Nudge_Store::subscriber_from_token( $r->get_param( 'token' ) );
+		if ( ! $sub || 'push' !== $sub->channel ) {
+			return new WP_Error( 'slip', 'Notifications are not on in this browser.', array( 'status' => 400 ) );
+		}
+		if ( self::limited( 'slip', 240 ) ) {
+			return new WP_Error( 'slip', 'Too many updates.', array( 'status' => 429 ) );
+		}
+		$count = (int) $r->get_param( 'count' );
+		$follows = Ace_Nudge_Store::t( 'follows' );
+		if ( $count < 1 ) {
+			$wpdb->delete( $follows, array( 'subscriber_id' => $sub->id, 'type' => 'slip' ), array( '%d', '%s' ) );
+			return array( 'ok' => true, 'slip' => false );
+		}
+		$old   = json_decode( (string) $wpdb->get_var( $wpdb->prepare( "SELECT meta FROM $follows WHERE subscriber_id = %d AND type = 'slip' AND object_id = 'slip'", $sub->id ) ), true );
+		$picks = array_slice( array_values( array_filter( (array) $r->get_param( 'picks' ), 'is_array' ) ), 0, 20 );
+		$picks = array_map( fn( $p ) => array(
+			'runner' => sanitize_text_field( (string) ( $p['runner'] ?? '' ) ),
+			'event'  => sanitize_text_field( (string) ( $p['event'] ?? '' ) ),
+			'start'  => (int) ( $p['start'] ?? 0 ),
+		), $picks );
+		$starts = array_filter( array_map( fn( $p ) => $p['start'], $picks ), fn( $t ) => $t > time() );
+		$meta = array(
+			'count'      => min( 20, $count ),
+			'type'       => sanitize_text_field( (string) $r->get_param( 'type' ) ),
+			'returns'    => round( (float) $r->get_param( 'returns' ), 2 ),
+			'url'        => esc_url_raw( (string) $r->get_param( 'url' ) ) ?: home_url( '/' ),
+			'picks'      => $picks,
+			'first'      => $starts ? min( $starts ) : 0,
+			'updated_at' => time(),
+			// A reminder already sent stays sent unless the slip changed shape
+			'idle_sent'  => is_array( $old ) && (int) ( $old['count'] ?? 0 ) === min( 20, $count ) ? (int) ( $old['idle_sent'] ?? 0 ) : 0,
+			'kick_sent'  => is_array( $old ) ? (int) ( $old['kick_sent'] ?? 0 ) : 0,
+		);
+		$wpdb->delete( $follows, array( 'subscriber_id' => $sub->id, 'type' => 'slip' ), array( '%d', '%s' ) );
+		self::add_follow( $sub->id, 'slip', 'slip', $meta );
+		return array( 'ok' => true, 'slip' => true );
+	}
+
+	/** The person placed or cleared the slip: no reminders. */
+	public static function slip_done( WP_REST_Request $r ) {
+		global $wpdb;
+		$sub = Ace_Nudge_Store::subscriber_from_token( $r->get_param( 'token' ) );
+		if ( $sub ) {
+			$wpdb->delete( Ace_Nudge_Store::t( 'follows' ), array( 'subscriber_id' => $sub->id, 'type' => 'slip' ), array( '%d', '%s' ) );
+		}
+		return array( 'ok' => true );
+	}
+
 	public static function state( WP_REST_Request $r ) {
 		global $wpdb;
 		$sub = Ace_Nudge_Store::subscriber_from_token( $r->get_param( 'token' ) );
 		if ( ! $sub ) {
 			return array( 'subscribed' => false, 'follows' => array() );
 		}
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT type, object_id, meta FROM ' . Ace_Nudge_Store::t( 'follows' ) . " WHERE subscriber_id = %d AND type <> 'read'", $sub->id ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT type, object_id, meta FROM ' . Ace_Nudge_Store::t( 'follows' ) . " WHERE subscriber_id = %d AND type NOT IN ('read','slip')", $sub->id ) );
 		return array(
 			'subscribed' => true,
 			'follows'    => array_map( fn( $f ) => $f->type . ':' . $f->object_id, $rows ),
