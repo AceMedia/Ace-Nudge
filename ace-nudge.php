@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Ace NUDGE
  * Description: Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter: follow a story, product, category or game, or the whole site, with consent evidence and an admin overview.
- * Version: 0.3.2
+ * Version: 0.3.3
  * Author: Shane Rounce
  * Requires at least: 6.5
  * Requires PHP: 8.1
@@ -21,6 +21,11 @@
  *   ace_nudge_brand, ace_nudge_bell_selector, ace_nudge_host_selector, ace_nudge_top_categories.
  *
  * An age question runs in the browser and only the fact that it was passed reaches the server.
+ *
+ * Browser API for other scripts, on window.aceNudge.api: follows() (what this browser follows, named),
+ * status() (push permission, subscribed, ready), unfollow(entry | type, id), open('manage' | 'push' |
+ * 'interests' | 'newsletter'), on(fn). Every change fires ace-nudge:change on document with
+ * { status, follows }. Where NUDGE stays quiet (test mode, failed age check) api.available is false.
  */
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }

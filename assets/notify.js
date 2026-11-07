@@ -15,9 +15,15 @@
 		} catch (e) {}
 	});
 	if (qs.has('ace_nudge_preview')) store.set('preview', '1');
-	if (cfg.mode === 'test' && !store.get('preview')) return;
+	// Other plugins (the settings panel) ask cfg.api what this browser follows. Where NUDGE stays
+	// quiet, it still answers, so they can say why rather than show an empty list.
+	const unavailable = (reason) => {
+		cfg.api = { available: false, reason, status: () => ({ available: false, reason }), follows: () => [], on: () => () => {}, open: () => {} };
+		document.dispatchEvent(new CustomEvent('ace-nudge:change', { detail: { status: cfg.api.status(), follows: [] } }));
+	};
+	if (cfg.mode === 'test' && !store.get('preview')) return unavailable('test');
 	// Someone who gave an under-18 year is never asked again, and can't retry with another year.
-	if (store.get('age') === 'no') return;
+	if (store.get('age') === 'no') return unavailable('age');
 
 	const pushable = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 	const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -318,7 +324,38 @@
 			b.setAttribute('aria-pressed', String(on));
 		});
 		listeners.forEach((f) => { try { f(follows.slice()); } catch (e) {} });
+		document.dispatchEvent(new CustomEvent('ace-nudge:change', { detail: { status: status(), follows: described() } }));
 	};
+
+	// What this browser follows, named. The server names games, stories and most categories; the
+	// whole-site switches and the top categories are named here. A top category can be several
+	// terms with one name, so it is one entry carrying all of its keys.
+	const described = () => {
+		const list = items.map((i) => ({ key: i.key, keys: [i.key], type: i.type, label: i.label }));
+		const seen = new Set(list.map((i) => i.key));
+		if (follows.includes('site:all')) list.unshift({ key: 'site:all', keys: ['site:all'], type: 'site', label: 'Everything on ' + cfg.name });
+		if (follows.includes('site:reads')) list.push({ key: 'site:reads', keys: ['site:reads'], type: 'site', label: 'Updates to what I\'ve read' });
+		['site:all', 'site:reads'].forEach((k) => seen.add(k));
+		(cfg.categories || []).forEach((c) => {
+			const keys = c.ids.map((id) => 'category:' + id).filter((k) => follows.includes(k) && !seen.has(k));
+			if (!keys.length) return;
+			keys.forEach((k) => seen.add(k));
+			list.push({ key: keys[0], keys, type: 'category', label: c.label });
+		});
+		follows.filter((k) => !seen.has(k) && !/^(read|slip):/.test(k)).forEach((k) => list.push({ key: k, keys: [k], type: k.split(':')[0], label: 'Something else you follow' }));
+		return list;
+	};
+	let ready = false;
+	const status = () => ({
+		available: true,
+		ready,
+		push: pushable ? Notification.permission : 'unsupported',
+		subscribed: !!store.get('token'),
+		notifications: notifyOn(),
+		scope: store.get('scope') || '',
+		newsletter: !!cfg.newsletter,
+		count: described().length,
+	});
 
 	// A follow button that's already following opens the panel rather than quietly unfollowing.
 	const clicked = (t) => {
@@ -340,12 +377,29 @@
 
 	// Other scripts on the page (the bet calculator's slip) can follow through the same flow:
 	// age check, notification permission, then the follow. `days` on a target makes it lapse.
+	// unfollow takes a target or an entry from follows() (every key it carries), or a type and an id.
+	const unfollowKeys = async (keys) => {
+		let s = null;
+		for (const key of keys) s = await post('unfollow', { key, token: store.get('token') });
+		if (s) apply(s);
+		return s;
+	};
 	cfg.api = {
+		available: true,
 		follow: (t) => clicked(t),
-		unfollow: (t) => post('unfollow', { key: t.key, token: store.get('token') }).then(apply),
+		unfollow: (t, id) => unfollowKeys(typeof t === 'string' ? [id !== undefined ? t + ':' + id : t] : (t.keys || [t.key])),
 		following: (key) => follows.includes(key),
+		follows: () => described(),
+		status: () => status(),
 		on: (f) => { listeners.push(f); return () => listeners.splice(listeners.indexOf(f), 1); },
 		manage: () => manage(),
+		// The panel's buttons open NUDGE's own steps, so the age check and consent stay in one place.
+		open: (section) => {
+			if (section === 'newsletter') return ageStep(newsletterStep);
+			if (section === 'push' || (section === 'interests' && !marketingOn())) return ageStep(() => pushStep(null));
+			if (section === 'interests') return interestsStep(null);
+			return manage();
+		},
 	};
 
 	const mount = () => {
@@ -458,10 +512,12 @@
 			post('withdraw', { token }).catch(() => {});
 		} else if (token) post('state', { token }).then((s) => {
 			if (!s.subscribed) store.del('token');
+			ready = true;
 			apply(s);
 			prompts();
 			if (cfg.post_id && follows.includes('site:reads')) post('read', { token, post_id: cfg.post_id }).catch(() => {});
-		}).catch(() => {});
+		}).catch(() => { ready = true; paint(); });
+		if (!store.get('token')) { ready = true; paint(); }
 	};
 	document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', mount) : mount();
 })();
