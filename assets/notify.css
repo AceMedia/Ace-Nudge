@@ -1,8 +1,11 @@
 .ace-nudge-bar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
 .ace-nudge-bar.is-centred { justify-content: center; width: 100%; }
-.ace-nudge-follow { min-height: 44px; padding: .5rem 1.1rem; border: 2px solid var(--ace-nudge-primary); border-radius: 999px; background: #fff; color: var(--ace-nudge-primary); font-weight: 700; cursor: pointer; transition: background .15s ease, color .15s ease; }
-.ace-nudge-follow:hover { background: var(--ace-nudge-page); }
-.ace-nudge-follow[aria-pressed="true"] { background: var(--ace-nudge-primary); color: #fff; }
+.ace-nudge-follow { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: .5rem 1.1rem; border: 2px solid var(--ace-nudge-follow, var(--ace-nudge-primary)); border-radius: 999px; background: #fff; color: var(--ace-nudge-follow, var(--ace-nudge-primary)); font-weight: 700; line-height: 1.2; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); transition: background .15s ease, color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.ace-nudge-follow:hover { background: color-mix(in srgb, var(--ace-nudge-follow, var(--ace-nudge-primary)) 12%, #fff); box-shadow: 0 2px 6px rgba(0, 0, 0, .12); transform: translateY(-1px); }
+.ace-nudge-follow[aria-pressed="true"] { background: var(--ace-nudge-follow, var(--ace-nudge-primary)); color: var(--ace-nudge-follow-contrast, #fff); }
+.ace-nudge-follow[aria-pressed="true"]:hover { background: color-mix(in srgb, var(--ace-nudge-follow, var(--ace-nudge-primary)) 88%, #000); }
+.ace-nudge-follow__icon { width: 22px; height: 22px; flex: 0 0 auto; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .15)); }
+@supports not (background: color-mix(in srgb, red 10%, #fff)) { .ace-nudge-follow:hover { background: var(--ace-nudge-page); } }
 .ace-nudge-bell { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--ace-nudge-primary); cursor: pointer; }
 @media (max-width: 600px) { .ace-nudge-bell { width: 36px; } }
 
@@ -60,13 +63,12 @@
 .ace-nudge-block > button:not(.ace-nudge-follow) { min-height: 46px; padding: .6rem 1.25rem; border: 0; border-radius: .6rem; background: var(--ace-nudge-primary); color: #fff; font-weight: 700; cursor: pointer; }
 .ace-nudge-orders { margin: 1rem 0; padding: 1rem; border-radius: .5rem; background: var(--ace-nudge-page); }
 .ace-nudge-orders p { margin: 0 0 .5rem; }
-.ace-nudge-bar.has-sides { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
-.ace-nudge-bar.has-sides [data-side="home"] { justify-self: start; }
-.ace-nudge-bar.has-sides [data-side="centre"] { justify-self: center; }
-.ace-nudge-bar.has-sides [data-side="away"] { justify-self: end; }
-.ace-nudge-bar.has-sides .ace-nudge-follow:not([data-side]) { grid-column: 1 / -1; justify-self: center; }
+/* A versus page: one row, home team first, the story and the sport between, away team last. */
+.ace-nudge-bar.has-sides { justify-content: center; align-items: center; gap: .6rem; }
+.ace-nudge-bar.has-sides [data-side="home"] { order: 0; }
+.ace-nudge-bar.has-sides [data-side="centre"] { order: 1; }
+.ace-nudge-bar.has-sides .ace-nudge-follow:not([data-side]) { order: 2; }
+.ace-nudge-bar.has-sides [data-side="away"] { order: 3; }
 @media (max-width: 600px) {
-	.ace-nudge-bar.has-sides { grid-template-columns: 1fr 1fr; }
-	.ace-nudge-bar.has-sides [data-side="centre"] { grid-column: 1 / -1; grid-row: 2; }
-	.ace-nudge-bar.has-sides [data-side="home"], .ace-nudge-bar.has-sides [data-side="away"] { width: 100%; justify-self: stretch; }
+	.ace-nudge-bar.has-sides .ace-nudge-follow { flex: 1 1 calc(50% - .6rem); justify-content: center; }
 }

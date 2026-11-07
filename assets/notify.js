@@ -314,7 +314,7 @@
 	const paint = () => {
 		buttons.forEach(([b, t]) => {
 			const on = follows.includes(t.key);
-			b.textContent = (on ? 'Following ' : 'Follow ') + t.label;
+			(b.querySelector('.ace-nudge-follow__label') || b).textContent = (on ? 'Following ' : 'Follow ') + t.label;
 			b.setAttribute('aria-pressed', String(on));
 		});
 		listeners.forEach((f) => { try { f(follows.slice()); } catch (e) {} });
@@ -329,6 +329,11 @@
 	const followButton = (t) => {
 		const b = el('button', { type: 'button', class: 'ace-nudge-follow', on: { click: () => clicked(t) } });
 		if (t.side) b.dataset.side = t.side;
+		// A target can bring its own colours (a team's shirt) and an icon (its kit).
+		if (t.colour) b.style.setProperty('--ace-nudge-follow', t.colour);
+		if (t.contrast) b.style.setProperty('--ace-nudge-follow-contrast', t.contrast);
+		if (t.icon) b.append(el('img', { class: 'ace-nudge-follow__icon', src: t.icon, alt: '', width: 22, height: 22 }));
+		b.append(el('span', { class: 'ace-nudge-follow__label' }, ''));
 		buttons.push([b, t]);
 		return b;
 	};
