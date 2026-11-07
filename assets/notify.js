@@ -17,9 +17,28 @@
 	if (qs.has('ace_nudge_preview')) store.set('preview', '1');
 	// Other plugins (the settings panel) ask cfg.api what this browser follows. Where NUDGE stays
 	// quiet, it still answers, so they can say why rather than show an empty list.
+	// A site with a settings panel (Ace Accessibility's "Your settings") manages alerts in its Alerts
+	// tab; without one, NUDGE's own dialog does it.
+	const settingsPanel = () => (window.aceSettings && document.getElementById('ace-accessibility-panel') ? window.aceSettings : null);
+	const bellSvg = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6v-5a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>';
 	const unavailable = (reason) => {
-		cfg.api = { available: false, reason, status: () => ({ available: false, reason }), follows: () => [], on: () => () => {}, open: () => {} };
+		cfg.api = { available: false, reason, status: () => ({ available: false, reason }), follows: () => [], categories: () => [], info: () => ({ name: cfg.name }), on: () => () => {}, open: () => {} };
 		document.dispatchEvent(new CustomEvent('ace-nudge:change', { detail: { status: cfg.api.status(), follows: [] } }));
+		// The bell still leads to the Alerts tab, which says why alerts are not on offer here.
+		const placeBell = () => {
+			const panel = settingsPanel();
+			const search = cfg.bell && document.querySelector(cfg.bell);
+			if (!panel || !search || document.querySelector('.ace-nudge-bell')) return;
+			const bell = document.createElement('button');
+			bell.type = 'button';
+			bell.className = 'ace-nudge-bell';
+			bell.setAttribute('aria-label', 'Alerts and newsletter');
+			bell.title = 'Alerts and newsletter';
+			bell.innerHTML = bellSvg;
+			bell.addEventListener('click', () => panel.open('alerts', bell));
+			search.before(bell);
+		};
+		document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', placeBell) : placeBell();
 	};
 	if (cfg.mode === 'test' && !store.get('preview')) return unavailable('test');
 	// Someone who gave an under-18 year is never asked again, and can't retry with another year.
@@ -166,6 +185,14 @@
 
 	// Nobody logs in here, so follows belong to this browser's subscription. Following therefore
 	// starts by turning notifications on. The toggle starts off and covers this channel only.
+	// Why this browser cannot take notifications, or null when it can.
+	const pushBlocker = () => {
+		const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+		if (ios && !navigator.standalone) return 'ios';
+		if (!pushable) return 'unsupported';
+		if (Notification.permission === 'denied') return 'denied';
+		return null;
+	};
 	const cantPush = () => {
 		const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 		if (ios && !navigator.standalone) {
@@ -276,7 +303,25 @@
 		));
 	};
 
+	const withdraw = async () => {
+		const token = store.get('token');
+		if (token) await post('withdraw', { token });
+		const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+		const sub = reg && await reg.pushManager.getSubscription();
+		if (sub) await sub.unsubscribe();
+		store.del('token');
+		store.del('scope');
+		follows = [];
+		items = [];
+		paint();
+	};
+
 	// Everything this browser follows, one switch each. Email is managed from the link in each email.
+	const openManage = (focus, from) => {
+		const panel = settingsPanel();
+		if (panel) return panel.open('alerts', from);
+		return manage(focus);
+	};
 	const manage = (focus) => {
 		const token = store.get('token');
 		const rows = items.map((item) => {
@@ -301,15 +346,7 @@
 				marketingOn() ? primary('Categories and whole site', () => interestsStep(null)) : primary('Turn on notifications', () => ageStep(() => pushStep(null))),
 				cfg.newsletter ? secondary('Get the newsletter', () => ageStep(newsletterStep)) : '',
 				token ? secondary('Turn off and delete my subscription', async () => {
-					await post('withdraw', { token });
-					const reg = await navigator.serviceWorker.getRegistration();
-					const sub = reg && await reg.pushManager.getSubscription();
-					if (sub) await sub.unsubscribe();
-					store.del('token');
-					store.del('scope');
-					follows = [];
-					items = [];
-					paint();
+					await withdraw();
 					show(heading('Turned off'), lead('We won\'t send you any more notifications, and your subscription has been deleted.'), actions(closeBtn('Close')));
 				}) : '',
 				closeBtn('Close')));
@@ -317,6 +354,7 @@
 
 	const buttons = [];
 	const listeners = [];
+	const bells = [];
 	const paint = () => {
 		buttons.forEach(([b, t]) => {
 			const on = follows.includes(t.key);
@@ -324,6 +362,15 @@
 			b.setAttribute('aria-pressed', String(on));
 		});
 		listeners.forEach((f) => { try { f(follows.slice()); } catch (e) {} });
+		// The bell shows how many things this browser follows.
+		const count = described().length;
+		bells.forEach((bell) => {
+			const badge = bell.querySelector('.ace-nudge-bell__count');
+			if (badge) { badge.textContent = count > 99 ? '99+' : String(count); badge.hidden = !count; }
+			const label = 'Alerts and newsletter' + (count ? ', following ' + count : '');
+			bell.setAttribute('aria-label', label);
+			bell.title = label;
+		});
 		document.dispatchEvent(new CustomEvent('ace-nudge:change', { detail: { status: status(), follows: described() } }));
 	};
 
@@ -360,7 +407,7 @@
 	// A follow button that's already following opens the panel rather than quietly unfollowing.
 	const clicked = (t) => {
 		if (!marketingOn()) return ageStep(() => pushStep(t));
-		return follows.includes(t.key) ? manage(t) : follow(t);
+		return follows.includes(t.key) ? openManage(t) : follow(t);
 	};
 
 	const followButton = (t) => {
@@ -393,7 +440,44 @@
 		status: () => status(),
 		on: (f) => { listeners.push(f); return () => listeners.splice(listeners.indexOf(f), 1); },
 		manage: () => manage(),
-		// The panel's buttons open NUDGE's own steps, so the age check and consent stay in one place.
+		// What the settings panel needs to run every alert control in its own tab. The rules (age
+		// check, consent wording, what a follow means) stay here.
+		info: () => ({ name: cfg.name, wording: cfg.wording, privacy: cfg.privacy, minAge: cfg.minAge || 0, newsletter: !!cfg.newsletter, quiet: cfg.quiet || null }),
+		pushBlocker: () => pushBlocker(),
+		ageNeeded: () => !!cfg.minAge && store.get('age') !== 'yes',
+		// The same rule as the dialog: someone born in the year that turns 18 may not be 18 yet.
+		confirmAge: (year) => {
+			const y = parseInt(year, 10), now = new Date().getFullYear();
+			if (!y || y < 1900 || y > now) return { ok: false, message: 'Please enter a four-digit year.' };
+			if (cfg.minAge && y > now - (cfg.minAge + 1)) {
+				store.set('age', 'no');
+				document.querySelectorAll('.ace-nudge-bar, .ace-nudge-footer, [data-ace-nudge]').forEach((b) => b.remove());
+				return { ok: false, blocked: true, message: 'This service isn\'t available to you.' };
+			}
+			store.set('age', 'yes');
+			return { ok: true };
+		},
+		// Asks the browser for permission (it must run from a click), then subscribes this browser.
+		pushOn: async () => {
+			const blocker = pushBlocker();
+			if (blocker === 'ios') throw { message: 'On iPhone and iPad, alerts only work once the site is on your Home Screen. Tap Share, choose Add to Home Screen, then open it from there.' };
+			if (blocker === 'unsupported') throw { message: 'This browser can\'t show alerts from websites.' };
+			if (blocker === 'denied') throw { message: 'Alerts are blocked for this site. Allow them in your browser\'s site settings, then try again.' };
+			await subscribePush();
+			paint();
+			return status();
+		},
+		pushOff: async () => { await withdraw(); return status(); },
+		categories: () => (cfg.categories || []).map((c) => ({ label: c.label, ids: c.ids, on: categoryOn(c) })),
+		site: (which) => follows.includes('site:' + which),
+		setSite: async (which, want) => { await setFollow('site', which, want, 'site:' + which); paint(); },
+		setCategory: async (label, want) => {
+			const c = (cfg.categories || []).find((x) => x.label === label);
+			if (!c) return;
+			for (const id of c.ids) await setFollow('category', id, want, 'category:' + id);
+			paint();
+		},
+		newsletter: ({ email, frequency, categories, website }) => post('subscribe', { channel: 'email', consent: true, age_confirmed: true, email, website: website || '', frequency: frequency === 'weekly' ? 'weekly' : 'daily', categories: categories || [] }),
 		open: (section) => {
 			if (section === 'newsletter') return ageStep(newsletterStep);
 			if (section === 'push' || (section === 'interests' && !marketingOn())) return ageStep(() => pushStep(null));
@@ -406,7 +490,7 @@
 		const single = document.body.classList.contains('single');
 		const blocks = document.querySelectorAll('[data-ace-nudge="follow"]');
 		blocks.forEach((block) => block.append(...cfg.targets.map(followButton)));
-		document.querySelectorAll('[data-ace-nudge="alerts"] button').forEach((b) => b.addEventListener('click', () => manage()));
+		document.querySelectorAll('[data-ace-nudge="alerts"] button').forEach((b) => b.addEventListener('click', () => openManage(null, b)));
 		document.querySelectorAll('[data-ace-nudge="newsletter"] button').forEach((b) => b.addEventListener('click', () => ageStep(newsletterStep)));
 		if (cfg.autoBar && !blocks.length && cfg.targets.length) {
 			const host = (cfg.host && document.querySelector(cfg.host))
@@ -492,19 +576,20 @@
 
 		const search = cfg.bell && document.querySelector(cfg.bell);
 		if (search) {
-			const bell = el('button', { type: 'button', class: 'ace-nudge-bell', 'aria-label': 'Alerts and newsletter', title: 'Alerts and newsletter', on: { click: () => manage() } });
-			bell.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6v-5a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>';
+			const bell = el('button', { type: 'button', class: 'ace-nudge-bell', 'aria-label': 'Alerts and newsletter', title: 'Alerts and newsletter', on: { click: () => openManage(null, bell) } });
+			bell.innerHTML = bellSvg + '<span class="ace-nudge-bell__count" hidden></span>';
 			search.before(bell);
+			bells.push(bell);
 		}
 
 		const footer = cfg.footerAfter && document.querySelector(cfg.footerAfter);
 		if (footer) {
 			footer.after(el('p', { class: 'ace-nudge-footer' },
-				cfg.newsletter ? el('button', { type: 'button', on: { click: () => ageStep(newsletterStep) } }, 'Newsletter') : '', ' ',
-				el('button', { type: 'button', on: { click: () => manage() } }, 'Browser alerts')));
+				cfg.newsletter ? el('button', { type: 'button', on: { click: (e) => (settingsPanel() ? openManage(null, e.currentTarget) : ageStep(newsletterStep)) } }, 'Newsletter') : '', ' ',
+				el('button', { type: 'button', on: { click: (e) => openManage(null, e.currentTarget) } }, 'Browser alerts')));
 		}
 		document.body.append(dialog);
-		if (qs.has('ace_nudge_manage')) manage();
+		if (qs.has('ace_nudge_manage')) setTimeout(() => openManage(), 300);
 		const token = store.get('token');
 		// Blocking notifications in the browser is a withdrawal, so honour it here too.
 		if (token && pushable && Notification.permission !== 'granted') {

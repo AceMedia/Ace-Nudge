@@ -163,6 +163,8 @@ class Ace_Nudge_Front {
 			'post_id' => is_singular( Ace_Nudge_Settings::post_types() ) ? get_the_ID() : 0,
 			'wording' => array( 'push' => Ace_Nudge_Store::wording( 'push' ), 'email' => Ace_Nudge_Store::wording( 'email' ), 'reads' => Ace_Nudge_Store::wording( 'reads' ) ),
 			'privacy' => esc_url_raw( (string) get_privacy_policy_url() ),
+			// Grouped alerts wait out these hours (site time); the settings panel says so.
+			'quiet'   => array( 'start' => (int) Ace_Nudge_Settings::get( 'quiet_start' ), 'end' => (int) Ace_Nudge_Settings::get( 'quiet_end' ) ),
 		) );
 	}
 }
