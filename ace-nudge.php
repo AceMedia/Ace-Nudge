@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Ace NUDGE
  * Description: Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter: follow a story, product, category or game, or the whole site, with consent evidence and an admin overview.
- * Version: 0.4.0
+ * Version: 0.4.1
  * Author: Shane Rounce
  * Requires at least: 6.5
  * Requires PHP: 8.1
@@ -12,8 +12,9 @@
  *
  * ACE_NUDGE_MODE in wp-config.php:
  *   off   (default) nothing is printed or sent. Admin screens still work.
- *   test  the prompt only shows after visiting ?ace_nudge_preview=1, and email only goes to
- *         the addresses in ACE_NUDGE_TEST_EMAILS. ACE_NUDGE_SHOW_ALL shows the prompt to everyone.
+ *   test  the prompt only shows after visiting ?ace_nudge_preview=1, email only goes to the
+ *         addresses in ACE_NUDGE_TEST_EMAILS, and push only to the subscriber ids in
+ *         ACE_NUDGE_TEST_PUSH (none unless listed). ACE_NUDGE_SHOW_ALL shows the prompt to everyone.
  *   on    open to visitors.
  *
  * Anything site-specific comes through filters, so regulated sites add their own rules:

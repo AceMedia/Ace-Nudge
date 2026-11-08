@@ -77,8 +77,26 @@ class Ace_Nudge_Push {
 		return $raw;
 	}
 
-	/** Returns the HTTP status, or 0 if the request never completed. */
+	/**
+	 * Whether a push may really go to this subscriber. Only when NUDGE is on; in test mode only to the
+	 * subscriber ids listed in ACE_NUDGE_TEST_PUSH (none by default), so a development copy of a site
+	 * never notifies real devices.
+	 */
+	public static function allowed( $sub ) {
+		if ( 'on' === ace_nudge_mode() ) {
+			return true;
+		}
+		if ( 'test' !== ace_nudge_mode() || ! defined( 'ACE_NUDGE_TEST_PUSH' ) ) {
+			return false;
+		}
+		return in_array( (int) ( $sub->id ?? 0 ), array_map( 'intval', (array) ACE_NUDGE_TEST_PUSH ), true );
+	}
+
+	/** Returns the HTTP status, or 0 if the request never completed or the push is not allowed. */
 	public static function send( $sub, array $message, $urgency = 'normal' ) {
+		if ( ! self::allowed( $sub ) ) {
+			return 0;
+		}
 		$body = self::encrypt( wp_json_encode( $message ), $sub->p256dh, $sub->auth );
 		if ( null === $body ) {
 			return 0;
