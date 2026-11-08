@@ -1,6 +1,9 @@
 (function () {
 	const cfg = window.aceNudge;
 	if (!cfg) return;
+	// wp_localize_script hands every top-level value over as a string, so "18" + 1 would be "181" and
+	// the age rule would turn everyone away. The minimum age is a number from here on.
+	cfg.minAge = parseInt(cfg.minAge, 10) || 0;
 	const qs = new URLSearchParams(location.search);
 	const store = {
 		get(k) { try { return localStorage.getItem('aceNudge.' + k); } catch (e) { return null; } },
