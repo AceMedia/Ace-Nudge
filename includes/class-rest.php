@@ -138,7 +138,8 @@ class Ace_Nudge_Rest {
 		}
 		if ( 'site' === $type ) {
 			$id = (string) $r->get_param( 'id' );
-			return in_array( $id, array( 'all', 'reads' ), true ) ? array( 'site', $id, array() ) : null;
+			// slipprices: price changes on the slip; tips: new tips in what they follow. Both off by default.
+			return in_array( $id, array( 'all', 'reads', 'slipprices', 'tips' ), true ) ? array( 'site', $id, array() ) : null;
 		}
 		if ( 'post' === $type ) {
 			$post = get_post( (int) $r->get_param( 'post_id' ) );
@@ -227,6 +228,11 @@ class Ace_Nudge_Rest {
 			'runner' => sanitize_text_field( (string) ( $p['runner'] ?? '' ) ),
 			'event'  => sanitize_text_field( (string) ( $p['event'] ?? '' ) ),
 			'start'  => (int) ( $p['start'] ?? 0 ),
+			// For price-change alerts, when the person asked for them: the market, the selection and
+			// the price on their slip. Nothing else about the slip travels.
+			'market' => preg_match( '/^\d{1,4}\.\d{1,15}$/', (string) ( $p['market'] ?? '' ) ) ? (string) $p['market'] : '',
+			'sel'    => ctype_digit( (string) ( $p['sel'] ?? '' ) ) ? (string) $p['sel'] : '',
+			'dec'    => round( max( 0, (float) ( $p['dec'] ?? 0 ) ), 3 ),
 		), $picks );
 		$starts = array_filter( array_map( fn( $p ) => $p['start'], $picks ), fn( $t ) => $t > time() );
 		$meta = array(
@@ -240,6 +246,8 @@ class Ace_Nudge_Rest {
 			// A reminder already sent stays sent unless the slip changed shape
 			'idle_sent'  => is_array( $old ) && (int) ( $old['count'] ?? 0 ) === min( 20, $count ) ? (int) ( $old['idle_sent'] ?? 0 ) : 0,
 			'kick_sent'  => is_array( $old ) ? (int) ( $old['kick_sent'] ?? 0 ) : 0,
+			// The last price alerted for each pick, so one change is told once.
+			'told'       => is_array( $old ) && is_array( $old['told'] ?? null ) ? $old['told'] : array(),
 		);
 		$wpdb->delete( $follows, array( 'subscriber_id' => $sub->id, 'type' => 'slip' ), array( '%d', '%s' ) );
 		self::add_follow( $sub->id, 'slip', 'slip', $meta );

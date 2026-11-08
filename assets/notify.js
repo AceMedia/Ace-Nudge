@@ -493,6 +493,121 @@
 	let unread = parseInt(store.get('unread') || '0', 10) || 0;
 	const REASONS = { new: 'New', updated: 'Updated', tips: 'Tips updated', prices: 'Prices changed', result: 'Result in' };
 
+	// Sports a reader reads, learnt on this device only and only while "Recommend bets from sports I
+	// read" is on (it is unless they switch it off, which also forgets what was learnt). Each term the
+	// reader has read is kept with when and how often, for 60 days.
+	const recoOn = () => store.get('reco') !== 'off';
+	const interest = loadMap('interest');
+	if (recoOn() && cfg.post_id && Array.isArray(cfg.post_terms)) {
+		cfg.post_terms.forEach((t) => { const was = interest[t]; interest[t] = [nowS(), (Array.isArray(was) ? was[1] : 0) + 1]; });
+		saveMap('interest', interest, 60);
+	}
+	const setReco = (on) => {
+		store.set('reco', on ? 'on' : 'off');
+		if (!on) { Object.keys(interest).forEach((k) => delete interest[k]); store.del('interest'); }
+		followsChanged();
+	};
+
+	// The reader's bet slip, where the site has one: its picks are read from this browser, their state
+	// comes from the site's cached endpoint (the same answer for anyone asking about the same picks),
+	// and nothing about the slip is stored anywhere else. The price first seen for each pick is kept
+	// here, so a move is measured from what the reader saw.
+	const slipCfg = cfg.slip && cfg.slip.state ? cfg.slip : null;
+	const slipPicks = () => {
+		if (!slipCfg) return [];
+		try {
+			if (window.aceSlip && typeof window.aceSlip.picks === 'function') return window.aceSlip.picks();
+			const saved = JSON.parse(localStorage.getItem(slipCfg.storage || '') || 'null');
+			return saved && Array.isArray(saved.picks) ? saved.picks : [];
+		} catch (e) { return []; }
+	};
+	const pickKey = (p) => p.market_id + ':' + p.selection_id;
+	const slipBase = loadMap('slipbase');
+	let slipState = null;
+	let slipAsked = '';
+	const oddsFormat = () => { try { return localStorage.getItem('aceOddsFormat') || 'fractional'; } catch (e) { return 'fractional'; } };
+	const FRACS = [[1, 10], [1, 8], [1, 6], [1, 5], [2, 9], [1, 4], [2, 7], [3, 10], [1, 3], [4, 11], [2, 5], [4, 9], [1, 2], [8, 15], [4, 7], [8, 13], [4, 6], [8, 11], [4, 5], [5, 6], [10, 11], [1, 1], [11, 10], [6, 5], [5, 4], [11, 8], [6, 4], [13, 8], [7, 4], [15, 8], [2, 1], [9, 4], [5, 2], [11, 4], [3, 1], [10, 3], [7, 2], [4, 1], [9, 2], [5, 1], [11, 2], [6, 1], [13, 2], [7, 1], [15, 2], [8, 1], [9, 1], [10, 1], [11, 1], [12, 1], [14, 1], [16, 1], [18, 1], [20, 1], [25, 1], [33, 1], [40, 1], [50, 1], [66, 1], [100, 1]];
+	const price = (dec, frac) => {
+		const f = oddsFormat();
+		if (!(dec > 1)) return frac || '';
+		if (f === 'decimal') return dec.toFixed(2);
+		if (f === 'probability') return Math.round(100 / dec) + '%';
+		if (frac) return frac === '1/1' ? 'Evens' : frac;
+		const best = FRACS.reduce((a, b) => (Math.abs(b[0] / b[1] + 1 - dec) < Math.abs(a[0] / a[1] + 1 - dec) ? b : a));
+		return best[0] === best[1] ? 'Evens' : best[0] + '/' + best[1];
+	};
+	const loadSlip = () => {
+		const picks = slipPicks().filter((p) => p.market_id && p.selection_id && !p.example);
+		const ask = picks.map(pickKey).sort().join(',');
+		if (!slipCfg || !picks.length || ask === slipAsked) return;
+		slipAsked = ask;
+		fetch(slipCfg.state + (slipCfg.state.indexOf('?') === -1 ? '?' : '&') + 's=' + encodeURIComponent(ask), { credentials: 'omit' })
+			.then((r) => (r.ok ? r.json() : Promise.reject(r)))
+			.then((j) => { slipState = j && j.picks ? j.picks : {}; compute(); bubble(); })
+			.catch(() => { slipAsked = ''; });
+	};
+	// What has changed on the slip: a result, a market closing or suspended, the event under way, a
+	// real price move, and the article a pick came from being updated since it was added.
+	const slipNotes = () => {
+		const out = [];
+		const picks = slipPicks().filter((p) => p.market_id && p.selection_id && !p.example);
+		let based = false;
+		picks.forEach((p) => {
+			const key = pickKey(p);
+			const name = p.runner || 'Your pick';
+			const st = slipState && slipState[key];
+			const base = Array.isArray(slipBase[key]) ? slipBase[key] : null;
+			if (st && st.dec > 1 && !base) { slipBase[key] = [nowS(), p.dec > 1 ? p.dec : st.dec]; based = true; }
+			const was = base ? base[1] : (p.dec > 1 ? p.dec : 0);
+			const add = (kind, label, text, value) => out.push({
+				id: 'slip:' + key + ':' + kind + ':' + value, group: 'slip', kind, label, title: text, sub: p.event || '',
+				url: (p.source && p.source.url) || '', action: 'slip', at: nowS(), thumb: '',
+			});
+			if (st && st.state === 'settled') {
+				const words = { won: [' won', 'Won'], placed: [' placed', 'Placed'], lost: [' lost', 'Lost'], removed: [' is a non-runner', 'Non-runner'] }[st.result] || [' settled', 'Result'];
+				add('result', words[1], name + words[0], st.result || 'settled');
+			} else if (st && (st.state === 'closed' || st.state === 'suspended')) {
+				add('closed', st.state === 'closed' ? 'Market closed' : 'Suspended', name + ': the market is ' + st.state + '. Price may have moved', st.state);
+			} else if (st && st.state === 'open') {
+				if (st.inplay) add('started', 'Under way', name + ': ' + (p.event || 'the event') + ' has started', 'inplay');
+				if (was > 1 && st.dec > 1 && Math.abs(st.dec - was) / was >= 0.01) {
+					const up = st.dec > was;
+					add('price', up ? 'Drifted' : 'Shortened', name + (up ? ' drifted' : ' shortened') + ' from ' + price(was) + ' to ' + price(st.dec, st.frac), String(st.dec));
+				}
+			}
+			const src = p.source && p.source.post_id && feed ? feed.items.find((it) => it.id === p.source.post_id) : null;
+			const addedS = Math.floor((p.added || 0) / 1000);
+			if (src && src.updated && src.updated > addedS) {
+				out.push({ id: 'slipart:' + src.id + ':' + src.updated, group: 'slip', kind: 'updated', label: 'Article updated', title: src.title,
+					sub: 'Where you picked ' + name, url: src.url, thumb: src.thumb, at: src.updated, post: src.id });
+			}
+		});
+		if (based) saveMap('slipbase', slipBase, 60);
+		return out;
+	};
+	// Recommended: tips from recent articles in sports the reader follows, or reads and puts on their
+	// slip (while that is switched on), that they haven't opened yet. A few at most, newest first.
+	const recoNotes = (taken) => {
+		if (!feed) return [];
+		const terms = new Set(follows.filter((k) => k.indexOf('category:') === 0).map((k) => parseInt(k.slice(9), 10)));
+		const sports = new Set();
+		if (recoOn()) {
+			Object.keys(interest).forEach((t) => terms.add(parseInt(t, 10)));
+			slipPicks().forEach((p) => { if (p.sport) sports.add(String(p.sport).toLowerCase()); });
+		}
+		if (!terms.size && !sports.size && !follows.includes('site:all')) return [];
+		return feed.items.filter((it) => Array.isArray(it.tips) && it.tips.length && !seen[it.id] && !taken.has(it.id)
+			&& it.published > nowS() - feedDays * DAY
+			&& (follows.includes('site:all') || it.terms.some((t) => terms.has(t)) || it.tips.some((tp) => sports.has(String(tp.sport || '').toLowerCase()))))
+			.slice(0, 4)
+			.map((it) => {
+				const tp = it.tips[0];
+				const more = it.tips.length > 1 ? ' and ' + (it.tips.length - 1) + ' more' : '';
+				return { id: 'tip:' + it.id, post: it.id, group: 'recommended', kind: 'tip', label: 'Tip', url: it.url, thumb: it.thumb, at: it.published,
+					title: tp.runner + (tp.price ? ' at ' + price(tp.dec, tp.price) : '') + more, sub: it.title };
+			});
+	};
+
 	// Whether what this browser follows covers an item, and as what: a result in, a change since it was
 	// read, or something new. Edits found only by their modified time count just as a change since the
 	// reader saw the post, never as news.
@@ -513,10 +628,13 @@
 	};
 	const announce = () => document.dispatchEvent(new CustomEvent('ace-nudge:notifications', { detail: { items: notes.slice(), unread } }));
 	const compute = () => {
-		notes = feed ? feed.items.map((it) => {
+		const updates = feed ? feed.items.map((it) => {
 			const k = kindOf(it);
-			return k && !gone[it.id] ? Object.assign({}, it, k, { unread: (readMap[it.id] || 0) < k.at }) : null;
-		}).filter(Boolean).sort((a, b) => (b.unread - a.unread) || (b.at - a.at)).slice(0, 40) : [];
+			return k && !gone[it.id] ? Object.assign({}, it, k, { group: 'updates', unread: (readMap[it.id] || 0) < k.at }) : null;
+		}).filter(Boolean) : [];
+		const taken = new Set(updates.map((n) => n.id));
+		const extra = slipNotes().concat(recoNotes(taken)).filter((n) => !gone[n.id]).map((n) => Object.assign(n, { unread: !readMap[n.id] && !(n.post && (readMap[n.post] || 0) >= n.at) }));
+		notes = updates.concat(extra).sort((a, b) => (b.unread - a.unread) || (b.at - a.at)).slice(0, 50);
 		unread = notes.filter((n) => n.unread).length;
 		store.set('unread', String(unread));
 		paint();
@@ -536,7 +654,9 @@
 	const idle = (f) => ('requestIdleCallback' in window ? requestIdleCallback(f, { timeout: 3000 }) : setTimeout(f, 1200));
 	// Nothing followed, nothing to tell: the list stays empty and the feed isn't fetched.
 	const followsChanged = () => {
-		if (!follows.length) {
+		const hasSlip = !!slipCfg && slipPicks().some((p) => p.market_id && !p.example);
+		if (hasSlip) idle(loadSlip);
+		if (!follows.length && !hasSlip && !(recoOn() && Object.keys(interest).length)) {
 			notes = [];
 			unread = 0;
 			store.set('unread', '0');
@@ -624,6 +744,10 @@
 		notifications: () => ({ items: notes.slice(), unread, loaded: !!feed || !follows.length }),
 		unread: () => unread,
 		markRead: (id) => markRead(id),
+		// Bets recommended from sports this reader reads (kept on this device): on unless switched off.
+		recommending: () => recoOn(),
+		setRecommending: (on) => setReco(!!on),
+		hasSlip: () => !!slipCfg,
 		markAllRead: () => markAllRead(),
 		dismiss: (id) => dismissNote(id),
 		// What the settings panel needs to run every alert control in its own tab. The rules (age

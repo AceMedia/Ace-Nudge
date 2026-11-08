@@ -164,6 +164,12 @@ class Ace_Nudge_Front {
 			// When the post on this page last changed, so the browser knows which version it has seen.
 			'post_modified' => is_singular( Ace_Nudge_Settings::post_types() ) ? (int) get_post_modified_time( 'U', true ) : 0,
 			'feed'    => esc_url_raw( rest_url( 'ace-nudge/v1/feed' ) ),
+			// What the post on this page is about, so the browser can learn which sports a reader reads
+			// (kept on the device, and only while they allow it in Settings).
+			'post_terms' => is_singular( Ace_Nudge_Settings::post_types() ) ? array_map( 'intval', (array) wp_get_object_terms( get_the_ID(), Ace_Nudge_Settings::taxonomies(), array( 'fields' => 'ids' ) ) ) : array(),
+			// A site's bet slip, when it has one: where the browser keeps it ('storage') and the public,
+			// cached endpoint that says how each pick stands now ('state'). Empty without one.
+			'slip'    => (array) apply_filters( 'ace_nudge_slip_config', array() ),
 			// Pages that are apps in their own right, where the notification bubble would be in the way.
 			'quietOn' => (string) apply_filters( 'ace_nudge_bubble_quiet_selector', '' ),
 			'wording' => array( 'push' => Ace_Nudge_Store::wording( 'push' ), 'email' => Ace_Nudge_Store::wording( 'email' ), 'reads' => Ace_Nudge_Store::wording( 'reads' ) ),

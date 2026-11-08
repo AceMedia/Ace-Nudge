@@ -21,6 +21,8 @@ class Ace_Nudge_Dispatch {
 		add_action( 'init', array( __CLASS__, 'schedule' ) );
 		add_action( self::LIVE_HOOK, array( __CLASS__, 'fixtures_tick' ) );
 		add_action( self::LIVE_HOOK, array( __CLASS__, 'slips_tick' ) );
+		add_action( self::LIVE_HOOK, array( __CLASS__, 'slip_prices_tick' ) );
+		add_action( self::BATCH_HOOK, array( __CLASS__, 'tips_tick' ) );
 		add_action( self::BATCH_HOOK, array( __CLASS__, 'category_batch' ) );
 		add_action( self::MAIL_HOOK, array( __CLASS__, 'digest' ) );
 		add_action( 'post_updated', array( __CLASS__, 'note_update' ), 10, 3 );
@@ -123,6 +125,146 @@ class Ace_Nudge_Dispatch {
 				$wpdb->update( $subs, array( 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $row->id ) );
 			}
 		}
+	}
+
+	/**
+	 * Price changes on a slip, for people who switched them on (site:slipprices): every five minutes
+	 * each pick's cached price is compared with the one on their slip, and a real move (or a market
+	 * closing, or a result) is told once. The site supplies the cache reader (ace_nudge_slip_state);
+	 * without one nothing happens. Quiet hours and the daily cap apply.
+	 */
+	public static function slip_prices_tick() {
+		global $wpdb;
+		if ( (int) gmdate( 'i' ) % 5 || ! has_filter( 'ace_nudge_slip_state' ) || self::quiet_now() ) {
+			return;
+		}
+		$follows = Ace_Nudge_Store::t( 'follows' );
+		$subs    = Ace_Nudge_Store::t( 'subscribers' );
+		$rows    = $wpdb->get_results( "SELECT f.id AS follow_id, f.meta, s.* FROM $follows f JOIN $subs s ON s.id = f.subscriber_id
+			JOIN $follows o ON o.subscriber_id = s.id AND o.type = 'site' AND o.object_id = 'slipprices'
+			WHERE f.type = 'slip' AND s.channel = 'push' AND s.status = 'active'" );
+		$today   = gmdate( 'Y-m-d' );
+		foreach ( $rows as $row ) {
+			$meta  = json_decode( (string) $row->meta, true );
+			$picks = is_array( $meta ) ? array_filter( (array) ( $meta['picks'] ?? array() ), fn( $p ) => ! empty( $p['market'] ) && ! empty( $p['sel'] ) ) : array();
+			if ( ! $picks || ( $row->sent_day === $today && (int) $row->sent_count >= (int) Ace_Nudge_Settings::get( 'daily_cap' ) ) ) {
+				continue;
+			}
+			$pairs = array();
+			foreach ( $picks as $p ) {
+				$pairs[ $p['market'] . ':' . $p['sel'] ] = array( $p['market'], $p['sel'] );
+			}
+			$state = (array) apply_filters( 'ace_nudge_slip_state', array(), $pairs );
+			$told  = (array) ( $meta['told'] ?? array() );
+			$lines = array();
+			foreach ( $picks as $p ) {
+				$key = $p['market'] . ':' . $p['sel'];
+				$now = (array) ( $state[ $key ] ?? array() );
+				$msg = self::slip_change( $p, $now );
+				if ( '' === $msg || ( $told[ $key ] ?? '' ) === $msg ) {
+					continue;
+				}
+				$told[ $key ] = $msg;
+				$lines[]      = $msg;
+			}
+			if ( ! $lines ) {
+				continue;
+			}
+			$meta['told'] = $told;
+			$wpdb->update( $follows, array( 'meta' => wp_json_encode( $meta ) ), array( 'id' => $row->follow_id ), array( '%s' ), array( '%d' ) );
+			$body = $lines[0] . ( count( $lines ) > 1 ? ' (+' . ( count( $lines ) - 1 ) . ' more)' : '' );
+			if ( self::deliver( $row, array( 'title' => 'Your bet slip', 'body' => $body, 'url' => $meta['url'] ?? home_url( '/' ), 'tag' => 'slip-prices' ) ) ) {
+				$sent = $row->sent_day === $today ? (int) $row->sent_count : 0;
+				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $sent + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $row->id ) );
+			}
+		}
+	}
+
+	/** What changed for one pick, in a line, or '' when nothing worth telling has. */
+	public static function slip_change( array $pick, array $now ) {
+		$name = '' !== (string) ( $pick['runner'] ?? '' ) ? $pick['runner'] : 'A pick';
+		$st   = (string) ( $now['state'] ?? 'unknown' );
+		if ( 'settled' === $st && in_array( $now['result'] ?? '', array( 'won', 'placed' ), true ) ) {
+			return $name . ( 'placed' === $now['result'] ? ' placed' : ' won' );
+		}
+		if ( 'settled' === $st ) {
+			return 'removed' === ( $now['result'] ?? '' ) ? $name . ' is a non-runner' : $name . ' lost';
+		}
+		if ( in_array( $st, array( 'closed', 'suspended' ), true ) ) {
+			return $name . ': market ' . $st;
+		}
+		$was = (float) ( $pick['dec'] ?? 0 );
+		$dec = (float) ( $now['dec'] ?? 0 );
+		if ( 'open' === $st && $was > 1 && $dec > 1 && abs( $dec - $was ) / $was >= 0.04 ) {
+			return $name . ( $dec > $was ? ' drifted to ' : ' shortened to ' ) . ( '' !== (string) ( $now['frac'] ?? '' ) ? $now['frac'] : $dec );
+		}
+		return '';
+	}
+
+	/**
+	 * New tips in what someone follows, for people who switched them on (site:tips): a post published
+	 * since the last run with tips in it (the site names them, ace_nudge_post_tips) in a followed sport
+	 * or competition, or anywhere for whole-site followers. One alert per run, quiet hours and the
+	 * daily cap apply, and only to subscribers who passed the age check to subscribe at all.
+	 */
+	public static function tips_tick() {
+		global $wpdb;
+		if ( ! has_filter( 'ace_nudge_post_tips' ) || self::quiet_now() ) {
+			return;
+		}
+		$since = (int) get_option( 'ace_nudge_tips_since', time() - HOUR_IN_SECONDS );
+		update_option( 'ace_nudge_tips_since', time(), false );
+		$posts = get_posts( array(
+			'post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => 30, 'no_found_rows' => true,
+			'date_query' => array( array( 'after' => gmdate( 'Y-m-d H:i:s', $since ), 'column' => 'post_date_gmt' ) ),
+		) );
+		$found = array();
+		foreach ( $posts as $p ) {
+			$tips = (array) apply_filters( 'ace_nudge_post_tips', array(), $p->ID );
+			if ( $tips && ! self::is_promotional( $p->post_title ) ) {
+				$found[ $p->ID ] = array( 'post' => $p, 'tip' => $tips[0], 'terms' => array_map( 'intval', (array) wp_get_object_terms( $p->ID, Ace_Nudge_Settings::taxonomies(), array( 'fields' => 'ids' ) ) ) );
+			}
+		}
+		if ( ! $found ) {
+			return;
+		}
+		$follows = Ace_Nudge_Store::t( 'follows' );
+		$subs    = Ace_Nudge_Store::t( 'subscribers' );
+		$rows    = $wpdb->get_results( "SELECT s.*, GROUP_CONCAT(CONCAT(f.type, ':', f.object_id)) AS wants FROM $subs s JOIN $follows f ON f.subscriber_id = s.id
+			WHERE s.channel = 'push' AND s.status = 'active' AND f.type IN ('category','site') GROUP BY s.id HAVING FIND_IN_SET('site:tips', wants)" );
+		$today   = gmdate( 'Y-m-d' );
+		foreach ( $rows as $sub ) {
+			$sent = $sub->sent_day === $today ? (int) $sub->sent_count : 0;
+			if ( $sent >= (int) Ace_Nudge_Settings::get( 'daily_cap' ) ) {
+				continue;
+			}
+			$wants = explode( ',', $sub->wants );
+			$all   = in_array( 'site:all', $wants, true );
+			$pick  = null;
+			foreach ( $found as $id => $f ) {
+				if ( $all || array_intersect( array_map( fn( $t ) => 'category:' . $t, $f['terms'] ), $wants ) ) {
+					$pick = $f;
+					break;
+				}
+			}
+			if ( ! $pick ) {
+				continue;
+			}
+			$tip  = $pick['tip'];
+			$body = trim( $tip['runner'] . ( '' !== (string) $tip['price'] ? ' at ' . $tip['price'] : '' ) . ' in ' . html_entity_decode( get_the_title( $pick['post'] ), ENT_QUOTES ) );
+			$msg  = array( 'title' => 'New tip', 'body' => $body . ' 18+. Please gamble responsibly.', 'url' => self::opened( get_permalink( $pick['post'] ), $pick['post']->ID ), 'tag' => 'tip-' . $pick['post']->ID );
+			if ( self::deliver( $sub, $msg ) ) {
+				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $sent + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $sub->id ) );
+			}
+		}
+	}
+
+	/** Whether it is within the quiet hours (site time) that grouped alerts wait out. */
+	private static function quiet_now() {
+		$hour  = (int) ( new DateTimeImmutable( 'now', new DateTimeZone( 'Europe/London' ) ) )->format( 'G' );
+		$start = (int) Ace_Nudge_Settings::get( 'quiet_start' );
+		$end   = (int) Ace_Nudge_Settings::get( 'quiet_end' );
+		return $start !== $end && ( $start > $end ? ( $hour >= $start || $hour < $end ) : ( $hour >= $start && $hour < $end ) );
 	}
 
 	/** Compare each followed game with what was last seen and alert on real changes. */
