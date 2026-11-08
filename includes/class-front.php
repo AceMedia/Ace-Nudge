@@ -161,6 +161,11 @@ class Ace_Nudge_Front {
 			'bell'    => (string) apply_filters( 'ace_nudge_bell_selector', '' ),
 			'host'    => (string) apply_filters( 'ace_nudge_host_selector', '' ),
 			'post_id' => is_singular( Ace_Nudge_Settings::post_types() ) ? get_the_ID() : 0,
+			// When the post on this page last changed, so the browser knows which version it has seen.
+			'post_modified' => is_singular( Ace_Nudge_Settings::post_types() ) ? (int) get_post_modified_time( 'U', true ) : 0,
+			'feed'    => esc_url_raw( rest_url( 'ace-nudge/v1/feed' ) ),
+			// Pages that are apps in their own right, where the notification bubble would be in the way.
+			'quietOn' => (string) apply_filters( 'ace_nudge_bubble_quiet_selector', '' ),
 			'wording' => array( 'push' => Ace_Nudge_Store::wording( 'push' ), 'email' => Ace_Nudge_Store::wording( 'email' ), 'reads' => Ace_Nudge_Store::wording( 'reads' ) ),
 			'privacy' => esc_url_raw( (string) get_privacy_policy_url() ),
 			// Grouped alerts wait out these hours (site time); the settings panel says so.

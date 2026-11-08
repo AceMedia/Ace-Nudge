@@ -8,7 +8,7 @@
 @supports not (background: color-mix(in srgb, red 10%, #fff)) { .ace-nudge-follow:hover { background: var(--ace-nudge-page); } }
 .ace-nudge-bell { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--ace-nudge-primary); cursor: pointer; }
 @media (max-width: 600px) { .ace-nudge-bell { width: 36px; } }
-/* The follow count on the bell: black on the brand primary green in light mode (5.4:1), black on the
+/* The unread count on the bell: white on the brand green in light mode, black on the
    brand yellow in dark mode. It is placed from the icon's centre, not the button's edges, so it stays
    on the bell whatever size the header gives the button. */
 .ace-nudge-bell { position: relative; }
@@ -80,3 +80,21 @@ html.pp-dark-mode .ace-nudge-bell .ace-nudge-bell__count { background: var(--wp-
 @media (max-width: 600px) {
 	.ace-nudge-bar.has-sides .ace-nudge-follow { flex: 1 1 calc(50% - .6rem); justify-content: center; }
 }
+
+/* The bubble from the bell: the newest unread notification, overlaying the page under the bell. It
+   takes a site's tooltip surface when there is one (--pp-tip-*), else white with dark text. */
+.ace-nudge-bubble { position: fixed; z-index: 100001; box-sizing: border-box; display: flex; align-items: stretch; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--pp-tip-line, #bed1cb); border-radius: 12px; background: var(--pp-tip-bg, #fff); color: var(--pp-tip-fg, #2d2d2d); box-shadow: var(--pp-tip-shadow, 0 8px 24px -8px rgba(0, 0, 0, .35)); transform-origin: calc(100% - var(--ace-nudge-bubble-arrow, 20px) - 7px) 0; }
+.ace-nudge-bubble::before { content: ""; position: absolute; top: -7px; right: var(--ace-nudge-bubble-arrow, 20px); width: 12px; height: 12px; border-top: 1px solid var(--pp-tip-line, #bed1cb); border-left: 1px solid var(--pp-tip-line, #bed1cb); background: var(--pp-tip-bg, #fff); transform: rotate(45deg); }
+.ace-nudge-bubble__open { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; padding: 10px 4px 10px 10px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 12px 0 0 12px; }
+.ace-nudge-bubble__thumb { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+.ace-nudge-bubble__text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ace-nudge-bubble__chip { align-self: flex-start; padding: 1px 7px; border-radius: 999px; background: #004833; color: #fff; font-size: 11px; font-weight: 800; line-height: 1.5; }
+.ace-nudge-bubble__chip[data-kind="updated"] { background: #ffff00; color: #222; }
+.ace-nudge-bubble__chip[data-kind="result"] { background: #2d2d2d; color: #fff; }
+.ace-nudge-bubble__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 14px; font-weight: 700; line-height: 1.3; }
+.ace-nudge-bubble__more { font-size: 12px; opacity: .8; }
+.ace-nudge-bubble__close { flex: 0 0 auto; align-self: flex-start; width: 36px; height: 36px; margin: 2px; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; font-size: 22px; line-height: 1; cursor: pointer; }
+.ace-nudge-bubble__open:hover .ace-nudge-bubble__title { text-decoration: underline; text-underline-offset: 2px; }
+.ace-nudge-bubble__close:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+html.pp-dark-mode .ace-nudge-bubble__chip[data-kind="result"] { background: #fff; color: #000; }
+@media print { .ace-nudge-bubble { display: none; } }

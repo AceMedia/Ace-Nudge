@@ -36,6 +36,15 @@ class Ace_Nudge_Dispatch {
 		}
 	}
 
+	/**
+	 * A push link names the post it is about (ref=nudge-ID), so opening it marks that notification read.
+	 * ref is a tracking parameter the page cache already leaves out of its keys, and the browser takes
+	 * it off the address as soon as the page loads.
+	 */
+	public static function opened( $url, $post_id ) {
+		return $post_id ? add_query_arg( 'ref', 'nudge-' . (int) $post_id, $url ) : $url;
+	}
+
 	public static function is_promotional( $text ) {
 		$pattern = (string) apply_filters( 'ace_nudge_promo_pattern', '' );
 		return '' !== $pattern && preg_match( $pattern, $text );
@@ -137,7 +146,7 @@ class Ace_Nudge_Dispatch {
 			$message = isset( $seen[ $fid ]['state'] ) ? self::fixture_message( $seen[ $fid ], $now, $item ) : null;
 			$seen[ $fid ] = $now + array_intersect_key( (array) ( $seen[ $fid ] ?? array() ), array( 'reminded' => 1 ) );
 			if ( $message ) {
-				$message['url'] = $meta['url'] ?? home_url( '/' );
+				$message['url'] = self::opened( $meta['url'] ?? home_url( '/' ), (int) ( $meta['post_id'] ?? 0 ) );
 				$rows = $wpdb->get_results( $wpdb->prepare(
 					"SELECT s.* FROM $subs s JOIN $follows f ON f.subscriber_id = s.id WHERE f.type = 'fixture' AND f.object_id = %s AND s.channel = 'push' AND s.status = 'active'",
 					$fid
@@ -177,7 +186,7 @@ class Ace_Nudge_Dispatch {
 		}
 		$seen[ $fid ]['reminded'] = $step;
 		$when = 60 === $step ? 'in an hour' : 'in ' . $step . ' minutes';
-		$msg  = array( 'title' => 'Starts ' . $when, 'body' => (string) ( $item['title'] ?? $meta['label'] ?? '' ), 'url' => $meta['url'] ?? home_url( '/' ), 'tag' => 'fixture' );
+		$msg  = array( 'title' => 'Starts ' . $when, 'body' => (string) ( $item['title'] ?? $meta['label'] ?? '' ), 'url' => self::opened( $meta['url'] ?? home_url( '/' ), (int) ( $meta['post_id'] ?? 0 ) ), 'tag' => 'fixture' );
 		$subs = Ace_Nudge_Store::t( 'subscribers' );
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT s.* FROM $subs s JOIN " . Ace_Nudge_Store::t( 'follows' ) . " f ON f.subscriber_id = s.id WHERE f.type = 'fixture' AND f.object_id = %s AND s.channel = 'push' AND s.status = 'active'",
@@ -359,7 +368,7 @@ class Ace_Nudge_Dispatch {
 			return array(
 				'title' => $new ? $name : ( array( 'stock' => 'Back in stock', 'price' => 'Price drop' )[ reset( $changes ) ] ?? 'Updated' ),
 				'body'  => html_entity_decode( get_the_title( $post ) ),
-				'url'   => get_permalink( $post ),
+				'url'   => self::opened( get_permalink( $post ), $post->ID ),
 				'tag'   => 'news',
 			);
 		}

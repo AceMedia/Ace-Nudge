@@ -25,7 +25,8 @@
 	const settingsPanel = () => (window.aceSettings && document.getElementById('ace-accessibility-panel') ? window.aceSettings : null);
 	const bellSvg = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6v-5a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>';
 	const unavailable = (reason) => {
-		cfg.api = { available: false, reason, status: () => ({ available: false, reason }), follows: () => [], categories: () => [], info: () => ({ name: cfg.name }), on: () => () => {}, open: () => {} };
+		cfg.api = { available: false, reason, status: () => ({ available: false, reason }), follows: () => [], categories: () => [], info: () => ({ name: cfg.name }), on: () => () => {}, open: () => {},
+			notifications: () => ({ items: [], unread: 0, loaded: true }), unread: () => 0, markRead: () => {}, markAllRead: () => {}, dismiss: () => {} };
 		document.dispatchEvent(new CustomEvent('ace-nudge:change', { detail: { status: cfg.api.status(), follows: [] } }));
 		// The bell still leads to the Alerts tab, which says why alerts are not on offer here.
 		const placeBell = () => {
@@ -181,7 +182,7 @@
 		if (purpose === 'orders') { if (!store.get('scope')) store.set('scope', hadToken ? 'all' : 'orders'); } else store.set('scope', 'all');
 	};
 
-	const apply = (s) => { follows = s.follows; items = s.items || []; paint(); };
+	const apply = (s) => { follows = s.follows; items = s.items || []; paint(); followsChanged(); };
 	const follow = (t) => post('follow', { ...t, token: store.get('token') }).then(apply);
 	const notifyOn = () => pushable && !!store.get('token') && Notification.permission === 'granted';
 	const marketingOn = () => notifyOn() && store.get('scope') !== 'orders';
@@ -365,12 +366,13 @@
 			b.setAttribute('aria-pressed', String(on));
 		});
 		listeners.forEach((f) => { try { f(follows.slice()); } catch (e) {} });
-		// The bell shows how many things this browser follows.
+		// The bell shows how many notifications are unread (what this browser follows that is new or
+		// has changed since it was read). The last count is kept, so the badge doesn't flash on load.
 		const count = described().length;
 		bells.forEach((bell) => {
 			const badge = bell.querySelector('.ace-nudge-bell__count');
-			if (badge) { badge.textContent = count > 99 ? '99+' : String(count); badge.hidden = !count; }
-			const label = 'Alerts and newsletter' + (count ? ', following ' + count : '');
+			if (badge) { badge.textContent = unread > 99 ? '99+' : String(unread); badge.hidden = !unread; }
+			const label = 'Alerts' + (unread ? ', ' + unread + ' new' : '') + (count ? ', following ' + count : '');
 			bell.setAttribute('aria-label', label);
 			bell.title = label;
 		});
@@ -453,6 +455,163 @@
 		if (s) apply(s);
 		return s;
 	};
+	/* ---------------------------------------------------------------- notifications */
+
+	// What this browser has seen, read and been shown, kept here only: nothing about a reader is sent
+	// anywhere. seen maps a post to when it was viewed and the version (modified time) viewed; the feed
+	// is public and the same for everyone, and this script works out what is unread.
+	const DAY = 86400;
+	const nowS = () => Math.floor(Date.now() / 1000);
+	const loadMap = (k) => { try { return JSON.parse(store.get(k) || '{}') || {}; } catch (e) { return {}; } };
+	const stamp = (v) => (Array.isArray(v) ? v[0] : v) || 0;
+	const saveMap = (k, m, cap) => {
+		const cut = nowS() - 60 * DAY;
+		const keep = Object.entries(m).filter(([, v]) => stamp(v) >= cut).sort((a, b) => stamp(b[1]) - stamp(a[1])).slice(0, cap || 400);
+		Object.keys(m).forEach((id) => { if (!keep.some(([k2]) => k2 === id)) delete m[id]; });
+		store.set(k, JSON.stringify(Object.fromEntries(keep)));
+	};
+	const seen = loadMap('seen');
+	const readMap = loadMap('read');
+	const shown = loadMap('shown');
+	const gone = loadMap('gone');
+	if (cfg.post_id) {
+		seen[cfg.post_id] = [nowS(), parseInt(cfg.post_modified, 10) || nowS()];
+		saveMap('seen', seen);
+	}
+	// Opened from a system notification (ref=nudge-ID): that item is read, and the reference comes off
+	// the address so it is never shared or bookmarked.
+	const opened = /^nudge-(\d+)$/.exec(qs.get('ref') || '');
+	if (opened) {
+		readMap[opened[1]] = nowS();
+		saveMap('read', readMap);
+		qs.delete('ref');
+		try { history.replaceState(history.state, '', location.pathname + (qs.toString() ? '?' + qs : '') + location.hash); } catch (e) {}
+	}
+	let feed = null;
+	let feedDays = 5;
+	let notes = [];
+	let unread = parseInt(store.get('unread') || '0', 10) || 0;
+	const REASONS = { new: 'New', updated: 'Updated', tips: 'Tips updated', prices: 'Prices changed', result: 'Result in' };
+
+	// Whether what this browser follows covers an item, and as what: a result in, a change since it was
+	// read, or something new. Edits found only by their modified time count just as a change since the
+	// reader saw the post, never as news.
+	const kindOf = (it) => {
+		const s = seen[it.id];
+		const viewedAt = s ? s[0] : 0;
+		const version = s ? s[1] : 0;
+		const has = (k) => follows.includes(k);
+		const game = !!it.fixture && has('fixture:' + it.fixture);
+		const story = has('post:' + it.id) || game;
+		const broad = has('site:all') || has('ptype:' + it.type) || it.terms.some((t) => has('category:' + t)) || game;
+		const read = !!s && has('site:reads');
+		if (it.result && it.result > viewedAt && (story || read || (broad && s))) return { kind: 'result', at: it.result, label: REASONS.result };
+		if (it.updated && s && it.updated > version + 60 && (story || read || broad)) return { kind: 'updated', at: it.updated, label: REASONS[it.reason] || REASONS.updated };
+		if (it.updated && !it.soft && !s && story) return { kind: 'updated', at: it.updated, label: REASONS[it.reason] || REASONS.updated };
+		if (!s && broad && it.published > nowS() - feedDays * DAY) return { kind: 'new', at: it.published, label: REASONS.new };
+		return null;
+	};
+	const announce = () => document.dispatchEvent(new CustomEvent('ace-nudge:notifications', { detail: { items: notes.slice(), unread } }));
+	const compute = () => {
+		notes = feed ? feed.items.map((it) => {
+			const k = kindOf(it);
+			return k && !gone[it.id] ? Object.assign({}, it, k, { unread: (readMap[it.id] || 0) < k.at }) : null;
+		}).filter(Boolean).sort((a, b) => (b.unread - a.unread) || (b.at - a.at)).slice(0, 40) : [];
+		unread = notes.filter((n) => n.unread).length;
+		store.set('unread', String(unread));
+		paint();
+		announce();
+	};
+	let feedAsked = false;
+	const loadFeed = () => {
+		if (feedAsked || !cfg.feed) return;
+		feedAsked = true;
+		fetch(cfg.feed, { credentials: 'omit' }).then((r) => (r.ok ? r.json() : Promise.reject(r))).then((j) => {
+			feed = j;
+			feedDays = parseInt(j.days, 10) || 5;
+			compute();
+			bubble();
+		}).catch(() => { feedAsked = false; });
+	};
+	const idle = (f) => ('requestIdleCallback' in window ? requestIdleCallback(f, { timeout: 3000 }) : setTimeout(f, 1200));
+	// Nothing followed, nothing to tell: the list stays empty and the feed isn't fetched.
+	const followsChanged = () => {
+		if (!follows.length) {
+			notes = [];
+			unread = 0;
+			store.set('unread', '0');
+			paint();
+			announce();
+			return;
+		}
+		if (feed) compute(); else idle(loadFeed);
+	};
+	const markRead = (id) => { readMap[id] = nowS(); saveMap('read', readMap); compute(); };
+	const markAllRead = () => { notes.forEach((n) => { readMap[n.id] = nowS(); }); saveMap('read', readMap); compute(); };
+	const dismissNote = (id) => { gone[id] = nowS(); readMap[id] = nowS(); saveMap('gone', gone); saveMap('read', readMap); compute(); };
+
+	// The settings sheet's Alerts tab shows the list; without one, NUDGE's own dialog does.
+	const openNotes = (from) => {
+		const panel = settingsPanel();
+		if (panel) return panel.open(unread || notes.length ? 'alerts-notifications' : 'alerts', from);
+		return manage();
+	};
+
+	// A small bubble from the bell names the newest unread item, once per item. It overlays the page
+	// (nothing moves), leaves on its own after six seconds unless pointed at or focused, and never
+	// shows inside the app pages a site names (the bet calculator, the map).
+	let bubbleEl = null;
+	const bubble = () => {
+		const bell = bells[0];
+		if (!bell || !bell.getClientRects().length || bubbleEl) return;
+		if (cfg.quietOn && document.querySelector(cfg.quietOn)) return;
+		if (document.documentElement.classList.contains('has-modal-open') || document.querySelector('dialog[open]')) return;
+		const fresh = notes.filter((n) => n.unread && !shown[n.id]);
+		if (!fresh.length) return;
+		fresh.forEach((n) => { shown[n.id] = nowS(); });
+		saveMap('shown', shown);
+		const first = fresh[0];
+		const r = bell.getBoundingClientRect();
+		const right = Math.max(8, Math.round(window.innerWidth - r.right));
+		const b = el('div', { class: 'ace-nudge-bubble', role: 'status', 'aria-live': 'polite' });
+		b.style.top = Math.round(r.bottom + 10) + 'px';
+		b.style.right = right + 'px';
+		b.style.setProperty('--ace-nudge-bubble-arrow', Math.max(12, Math.round(window.innerWidth - r.right - right + r.width / 2 - 7)) + 'px');
+		let timer = null;
+		const close = () => {
+			if (!bubbleEl) return;
+			clearTimeout(timer);
+			const node = bubbleEl;
+			bubbleEl = null;
+			document.removeEventListener('keydown', onKey);
+			if (calm || !node.animate) return node.remove();
+			node.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-6px) scale(.96)' }], { duration: 180, easing: 'ease-in' }).finished.then(() => node.remove(), () => node.remove());
+		};
+		const onKey = (e) => { if (e.key === 'Escape') close(); };
+		const wait = () => { clearTimeout(timer); timer = setTimeout(close, 6000); };
+		b.append(
+			el('button', { type: 'button', class: 'ace-nudge-bubble__open', on: { click: () => { close(); openNotes(bell); } } },
+				first.thumb ? el('img', { class: 'ace-nudge-bubble__thumb', src: first.thumb, alt: '', width: '40', height: '40', decoding: 'async' }) : '',
+				el('span', { class: 'ace-nudge-bubble__text' },
+					el('span', { class: 'ace-nudge-bubble__chip', 'data-kind': first.kind }, first.label),
+					el('span', { class: 'ace-nudge-bubble__title' }, first.title),
+					fresh.length > 1 ? el('span', { class: 'ace-nudge-bubble__more' }, '+' + (fresh.length - 1) + ' more') : '')),
+			el('button', { type: 'button', class: 'ace-nudge-bubble__close', 'aria-label': 'Dismiss', on: { click: close } }, '\u00d7'));
+		b.addEventListener('mouseenter', () => clearTimeout(timer));
+		b.addEventListener('mouseleave', wait);
+		b.addEventListener('focusin', () => clearTimeout(timer));
+		b.addEventListener('focusout', wait);
+		document.addEventListener('keydown', onKey);
+		document.addEventListener('ace-sheet:open', close, { once: true });
+		window.addEventListener('resize', close, { once: true });
+		document.body.append(b);
+		bubbleEl = b;
+		if (!calm && b.animate) {
+			b.animate([{ opacity: 0, transform: 'translateY(-10px) scale(.6)' }, { opacity: 1, transform: 'translateY(2px) scale(1.02)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.8,.3,1)' });
+		}
+		wait();
+	};
+
 	cfg.api = {
 		available: true,
 		follow: (t) => clicked(t),
@@ -462,6 +621,11 @@
 		status: () => status(),
 		on: (f) => { listeners.push(f); return () => listeners.splice(listeners.indexOf(f), 1); },
 		manage: () => manage(),
+		notifications: () => ({ items: notes.slice(), unread, loaded: !!feed || !follows.length }),
+		unread: () => unread,
+		markRead: (id) => markRead(id),
+		markAllRead: () => markAllRead(),
+		dismiss: (id) => dismissNote(id),
 		// What the settings panel needs to run every alert control in its own tab. The rules (age
 		// check, consent wording, what a follow means) stay here.
 		info: () => ({ name: cfg.name, wording: cfg.wording, privacy: cfg.privacy, minAge: cfg.minAge || 0, newsletter: !!cfg.newsletter, quiet: cfg.quiet || null }),
@@ -598,7 +762,7 @@
 
 		const search = cfg.bell && document.querySelector(cfg.bell);
 		if (search) {
-			const bell = el('button', { type: 'button', class: 'ace-nudge-bell', 'aria-label': 'Alerts and newsletter', title: 'Alerts and newsletter', on: { click: () => openManage(null, bell) } });
+			const bell = el('button', { type: 'button', class: 'ace-nudge-bell', 'aria-label': 'Alerts and newsletter', title: 'Alerts and newsletter', on: { click: () => (settingsPanel() ? openNotes(bell) : openManage(null, bell)) } });
 			bell.innerHTML = bellSvg + '<span class="ace-nudge-bell__count" hidden></span>';
 			search.before(bell);
 			bells.push(bell);
@@ -624,7 +788,7 @@
 			prompts();
 			if (cfg.post_id && follows.includes('site:reads')) post('read', { token, post_id: cfg.post_id }).catch(() => {});
 		}).catch(() => { ready = true; paint(); });
-		if (!store.get('token')) { ready = true; paint(); }
+		if (!store.get('token')) { ready = true; paint(); followsChanged(); }
 	};
 	document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', mount) : mount();
 })();
