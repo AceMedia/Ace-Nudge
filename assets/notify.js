@@ -681,13 +681,18 @@
 	// (nothing moves), leaves on its own after six seconds unless pointed at or focused, and never
 	// shows inside the app pages a site names (the bet calculator, the map).
 	let bubbleEl = null;
+	let reloaded = false;
+	try { const nav = performance.getEntriesByType('navigation')[0]; reloaded = !!nav && nav.type === 'reload'; } catch (e) {}
 	const bubble = () => {
 		const bell = bells[0];
 		if (!bell || !bell.getClientRects().length || bubbleEl) return;
 		if (cfg.quietOn && document.querySelector(cfg.quietOn)) return;
 		if (document.documentElement.classList.contains('has-modal-open') || document.querySelector('dialog[open]')) return;
-		const fresh = notes.filter((n) => n.unread && !shown[n.id]);
+		// A reload (hard refresh included) shows the bubble again for what is unread, so it can be
+		// previewed; an ordinary visit tells each item once.
+		const fresh = notes.filter((n) => n.unread && (reloaded || !shown[n.id]));
 		if (!fresh.length) return;
+		reloaded = false;
 		fresh.forEach((n) => { shown[n.id] = nowS(); });
 		saveMap('shown', shown);
 		const first = fresh[0];
