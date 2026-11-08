@@ -413,11 +413,30 @@
 		return follows.includes(t.key) ? openManage(t) : follow(t);
 	};
 
+	// A team colour can be too pale to read on the button's white (sky blue, yellow). The border keeps
+	// the colour; the label gets it darkened just enough to reach 4.5:1 against white.
+	const readableOnWhite = (hex) => {
+		const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+		if (!m) return '';
+		let rgb = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+		const lum = (c) => {
+			const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+			return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+		};
+		let steps = 0;
+		while (1.05 / (lum(rgb) + 0.05) < 4.5 && steps++ < 20) rgb = rgb.map((v) => Math.round(v * 0.9));
+		return steps ? '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('') : '';
+	};
+
 	const followButton = (t) => {
 		const b = el('button', { type: 'button', class: 'ace-nudge-follow', on: { click: () => clicked(t) } });
 		if (t.side) b.dataset.side = t.side;
 		// A target can bring its own colours (a team's shirt) and an icon (its kit).
-		if (t.colour) b.style.setProperty('--ace-nudge-follow', t.colour);
+		if (t.colour) {
+			b.style.setProperty('--ace-nudge-follow', t.colour);
+			const text = readableOnWhite(t.colour);
+			if (text) b.style.setProperty('--ace-nudge-follow-text', text);
+		}
 		if (t.contrast) b.style.setProperty('--ace-nudge-follow-contrast', t.contrast);
 		if (t.icon) b.append(el('img', { class: 'ace-nudge-follow__icon', src: t.icon, alt: '', width: 22, height: 22 }));
 		b.append(el('span', { class: 'ace-nudge-follow__label' }, ''));
