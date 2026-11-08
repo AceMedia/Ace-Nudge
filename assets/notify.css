@@ -8,11 +8,13 @@
 @supports not (background: color-mix(in srgb, red 10%, #fff)) { .ace-nudge-follow:hover { background: var(--ace-nudge-page); } }
 .ace-nudge-bell { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--ace-nudge-primary); cursor: pointer; }
 @media (max-width: 600px) { .ace-nudge-bell { width: 36px; } }
-/* The follow count on the bell: the brand dark green with white, the brand yellow in dark mode. */
+/* The follow count on the bell: black on the brand primary green in light mode (5.4:1), black on the
+   brand yellow in dark mode. It is placed from the icon's centre, not the button's edges, so it stays
+   on the bell whatever size the header gives the button. */
 .ace-nudge-bell { position: relative; }
-.ace-nudge-bell__count { position: absolute; top: 6px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--wp--preset--color--tertiary, #004833); color: #fff; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--wp--preset--color--background, #fff); pointer-events: none; }
-.ace-nudge-bell__count[hidden] { display: none; }
-html.pp-dark-mode .ace-nudge-bell__count { background: var(--wp--preset--color--secondary, #ffff00); color: var(--wp--preset--color--tertiary, #004833); box-shadow: none; }
+.ace-nudge-bell .ace-nudge-bell__count { position: absolute; top: calc(50% - 17px); left: calc(50% + 1px); min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--wp--preset--color--primary, #31953e); color: #000000; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--wp--preset--color--background, #ffffff); pointer-events: none; }
+.ace-nudge-bell .ace-nudge-bell__count[hidden] { display: none; }
+html.pp-dark-mode .ace-nudge-bell .ace-nudge-bell__count { background: var(--wp--preset--color--secondary, #ffff00); color: #000000; box-shadow: 0 0 0 2px #000000; }
 .ace-nudge-bell:focus-visible { outline: 2px solid var(--wp--preset--color--primary, #31953e); outline-offset: -2px; border-radius: 50%; }
 
 .ace-nudge-dialog { box-sizing: border-box; width: calc(100% - 32px); max-width: 30rem; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 1.5rem; border: 0; border-top: 6px solid var(--ace-nudge-accent); border-radius: 1rem; background: #fff; color: #111; box-shadow: 0 18px 50px rgba(0, 0, 0, .3); }
