@@ -763,7 +763,7 @@
 		reloaded = false;
 		fresh.forEach((n) => { shown[n.id] = nowS(); });
 		saveMap('shown', shown);
-		ding(first.group === 'slip' ? 'slip' : 'site', 6000);
+		ding(fresh[0].group === 'slip' ? 'slip' : 'site', 6000);
 		const first = fresh[0];
 		const r = bell.getBoundingClientRect();
 		const right = Math.max(8, Math.round(window.innerWidth - r.right));
