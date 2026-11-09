@@ -652,6 +652,13 @@
 		}).catch(() => { feedAsked = false; });
 	};
 	const idle = (f) => ('requestIdleCallback' in window ? requestIdleCallback(f, { timeout: 3000 }) : setTimeout(f, 1200));
+	// While the page stays open, look again every four minutes (only when it is in view), so
+	// something new arriving mid-visit still gets its bubble and its sound.
+	setInterval(() => {
+		if (document.hidden) return;
+		if (feed) { feedAsked = false; loadFeed(); }
+		if (slipCfg) { slipAsked = ''; loadSlip(); }
+	}, 240000);
 	// Nothing followed, nothing to tell: the list stays empty and the feed isn't fetched.
 	const followsChanged = () => {
 		const hasSlip = !!slipCfg && slipPicks().some((p) => p.market_id && !p.example);
@@ -680,56 +687,65 @@
 	// A small bubble from the bell names the newest unread item, once per item. It overlays the page
 	// (nothing moves), leaves on its own after six seconds unless pointed at or focused, and never
 	// shows inside the app pages a site names (the bet calculator, the map).
-	// A short arcade "ding-ding", like a fruit machine paying out, as a notification comes in. It is
-	// made in the browser (no sound file to load): two bright bell notes, each a square wave softened
-	// by a triangle an octave up, dying away quickly. Browsers only let a page make sound once the
-	// reader has interacted with it, so if it is not allowed yet it waits for their first tap or key
-	// while the bubble is showing, and otherwise stays silent. Readers can switch it off in Alerts.
+	// An arcade sound as a notification comes in, made in the browser (no sound file to load). Site
+	// notifications get a "ding-ding", two bright bell notes like a fruit machine paying out; bet slip
+	// ones get a quick three-note coin run that ends on a ring, so the two are told apart by ear. Each
+	// note is a square wave softened by a triangle an octave up, dying away quickly. Browsers only let
+	// a page make sound once the reader has interacted with it, so if it is not allowed yet it waits
+	// for their first tap or key while the bubble is showing, and otherwise stays silent. Readers can
+	// switch it off in Alerts.
 	let audio = null;
 	const soundOn = () => store.get('sound') !== 'off';
-	const ding = (forMs) => {
+	const TUNES = {
+		site: [[1568, 0, 0.38], [2093, 0.12, 0.38]],
+		slip: [[1319, 0, 0.12], [1568, 0.07, 0.12], [2093, 0.14, 0.12], [2637, 0.21, 0.5]]
+	};
+	const ding = (kind, forMs) => {
 		const Ctx = window.AudioContext || window.webkitAudioContext;
 		if (!Ctx || !soundOn()) return;
-		const play = () => {
-			try {
-				audio = audio || new Ctx();
-				const go = () => {
-					const t0 = audio.currentTime + 0.01;
-					const out = audio.createGain();
-					out.gain.value = 0.16;
-					out.connect(audio.destination);
-					[[1568, 0], [2093, 0.12]].forEach(([f, at]) => {
-						[['square', f, 0.35], ['triangle', f * 2, 0.5]].forEach(([type, freq, level]) => {
-							const o = audio.createOscillator();
-							const g = audio.createGain();
-							o.type = type;
-							o.frequency.value = freq;
-							g.gain.setValueAtTime(0.0001, t0 + at);
-							g.gain.exponentialRampToValueAtTime(level, t0 + at + 0.006);
-							g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.38);
-							o.connect(g);
-							g.connect(out);
-							o.start(t0 + at);
-							o.stop(t0 + at + 0.4);
-						});
-					});
-				};
-				if (audio.state === 'running') return go(), true;
-				audio.resume().then(() => { if (audio.state === 'running') go(); }, () => {});
-				return audio.state === 'running';
-			} catch (e) { return true; }
+		const tune = TUNES[kind] || TUNES.site;
+		const go = () => {
+			const t0 = audio.currentTime + 0.01;
+			const out = audio.createGain();
+			out.gain.value = 0.16;
+			out.connect(audio.destination);
+			tune.forEach(([f, at, len]) => {
+				[['square', f, 0.35], ['triangle', f * 2, 0.5]].forEach(([type, freq, level]) => {
+					const o = audio.createOscillator();
+					const g = audio.createGain();
+					o.type = type;
+					o.frequency.value = freq;
+					g.gain.setValueAtTime(0.0001, t0 + at);
+					g.gain.exponentialRampToValueAtTime(level, t0 + at + 0.006);
+					g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + len);
+					o.connect(g);
+					g.connect(out);
+					o.start(t0 + at);
+					o.stop(t0 + at + len + 0.02);
+				});
+			});
 		};
-		const allowed = navigator.userActivation ? navigator.userActivation.hasBeenActive : false;
-		if (allowed) { play(); return; }
-		const until = Date.now() + forMs;
-		const once = () => {
-			document.removeEventListener('pointerdown', once, true);
-			document.removeEventListener('keydown', once, true);
-			if (Date.now() <= until) play();
+		const wait = () => {
+			if (!forMs) return;
+			const until = Date.now() + forMs;
+			const once = () => {
+				stop();
+				if (Date.now() <= until) audio.resume().then(() => { if (audio.state === 'running') go(); }, () => {});
+			};
+			const stop = () => {
+				document.removeEventListener('pointerdown', once, true);
+				document.removeEventListener('keydown', once, true);
+			};
+			document.addEventListener('pointerdown', once, true);
+			document.addEventListener('keydown', once, true);
+			setTimeout(stop, forMs);
 		};
-		document.addEventListener('pointerdown', once, true);
-		document.addEventListener('keydown', once, true);
-		setTimeout(() => { document.removeEventListener('pointerdown', once, true); document.removeEventListener('keydown', once, true); }, forMs);
+		try {
+			audio = audio || new Ctx();
+			if (audio.state === 'running') return go();
+			// Try anyway: a browser that already allows sound here resumes straight away.
+			audio.resume().then(() => { if (audio.state === 'running') go(); else wait(); }, wait);
+		} catch (e) {}
 	};
 
 	let bubbleEl = null;
@@ -747,7 +763,7 @@
 		reloaded = false;
 		fresh.forEach((n) => { shown[n.id] = nowS(); });
 		saveMap('shown', shown);
-		ding(6000);
+		ding(first.group === 'slip' ? 'slip' : 'site', 6000);
 		const first = fresh[0];
 		const r = bell.getBoundingClientRect();
 		const right = Math.max(8, Math.round(window.innerWidth - r.right));
@@ -808,7 +824,7 @@
 		// The ding as a notification comes in: on unless switched off, kept in this browser. Switching
 		// it on plays it once, so the reader hears what they chose.
 		sound: () => soundOn(),
-		setSound: (on) => { store.set('sound', on ? 'on' : 'off'); if (on) ding(0); },
+		setSound: (on) => { store.set('sound', on ? 'on' : 'off'); if (on) ding('site', 0); },
 		hasSlip: () => !!slipCfg,
 		markAllRead: () => markAllRead(),
 		dismiss: (id) => dismissNote(id),
