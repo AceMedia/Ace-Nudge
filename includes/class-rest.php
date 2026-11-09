@@ -138,8 +138,9 @@ class Ace_Nudge_Rest {
 		}
 		if ( 'site' === $type ) {
 			$id = (string) $r->get_param( 'id' );
-			// slipprices: price changes on the slip; tips: new tips in what they follow. Both off by default.
-			return in_array( $id, array( 'all', 'reads', 'slipprices', 'tips' ), true ) ? array( 'site', $id, array() ) : null;
+			// slipprices: price changes on the slip; slipremind: a reminder before the slip's first event;
+			// tips: new tips in what they follow. All off by default.
+			return in_array( $id, array( 'all', 'reads', 'slipprices', 'slipremind', 'tips' ), true ) ? array( 'site', $id, array() ) : null;
 		}
 		if ( 'post' === $type ) {
 			$post = get_post( (int) $r->get_param( 'post_id' ) );
@@ -243,8 +244,6 @@ class Ace_Nudge_Rest {
 			'picks'      => $picks,
 			'first'      => $starts ? min( $starts ) : 0,
 			'updated_at' => time(),
-			// A reminder already sent stays sent unless the slip changed shape
-			'idle_sent'  => is_array( $old ) && (int) ( $old['count'] ?? 0 ) === min( 20, $count ) ? (int) ( $old['idle_sent'] ?? 0 ) : 0,
 			'kick_sent'  => is_array( $old ) ? (int) ( $old['kick_sent'] ?? 0 ) : 0,
 			// The last price alerted for each pick, so one change is told once.
 			'told'       => is_array( $old ) && is_array( $old['told'] ?? null ) ? $old['told'] : array(),

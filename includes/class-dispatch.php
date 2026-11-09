@@ -80,16 +80,21 @@ class Ace_Nudge_Dispatch {
 	}
 
 	/**
-	 * Bet slip reminders: once, half an hour after the slip last changed with nothing placed; and
-	 * once, fifteen minutes before the first game or race on it. Slips whose events have all
-	 * started, or that have not changed for two days, are forgotten.
+	 * Bet slip reminder, for people who switched it on (site:slipremind): once, fifteen minutes before
+	 * the first game or race on the slip, with no potential returns in it, inside quiet hours and the
+	 * daily cap. There is no "still thinking it over?" nudge: a repeated prompt to bet is out (#159).
+	 * Slips whose events have all started, or that have not changed for two days, are forgotten
+	 * whether or not the reminder is on.
 	 */
 	public static function slips_tick() {
 		global $wpdb;
 		$follows = Ace_Nudge_Store::t( 'follows' );
 		$subs    = Ace_Nudge_Store::t( 'subscribers' );
-		$rows    = $wpdb->get_results( "SELECT f.id AS follow_id, f.meta, s.* FROM $follows f JOIN $subs s ON s.id = f.subscriber_id WHERE f.type = 'slip' AND s.channel = 'push' AND s.status = 'active'" );
+		$rows    = $wpdb->get_results( "SELECT f.id AS follow_id, f.meta, s.*, (SELECT 1 FROM $follows o WHERE o.subscriber_id = s.id AND o.type = 'site' AND o.object_id = 'slipremind' LIMIT 1) AS wants_reminder
+			FROM $follows f JOIN $subs s ON s.id = f.subscriber_id WHERE f.type = 'slip' AND s.channel = 'push' AND s.status = 'active'" );
 		$now     = time();
+		$today   = gmdate( 'Y-m-d' );
+		$quiet   = self::quiet_now();
 		foreach ( $rows as $row ) {
 			$meta = json_decode( (string) $row->meta, true );
 			if ( ! is_array( $meta ) || empty( $meta['count'] ) ) {
@@ -100,29 +105,29 @@ class Ace_Nudge_Dispatch {
 				$wpdb->delete( $follows, array( 'id' => $row->follow_id ), array( '%d' ) );
 				continue;
 			}
-			$n    = (int) $meta['count'];
-			$what = $n . ' pick' . ( 1 === $n ? '' : 's' ) . ( ! empty( $meta['type'] ) ? ' as a ' . strtolower( (string) $meta['type'] ) : '' ) . ( ! empty( $meta['returns'] ) ? ', returns £' . number_format( (float) $meta['returns'], 2 ) : '' );
-			$sent = false;
-			if ( empty( $meta['kick_sent'] ) && $first && $first - $now <= 15 * MINUTE_IN_SECONDS ) {
-				$pick = null;
-				foreach ( (array) $meta['picks'] as $p ) {
-					if ( (int) $p['start'] === $first ) {
-						$pick = $p;
-						break;
-					}
-				}
-				$when = $pick && ! empty( $pick['event'] ) ? $pick['event'] . ' starts in ' . max( 1, (int) ceil( ( $first - $now ) / MINUTE_IN_SECONDS ) ) . ' minutes' : 'The first game on your slip starts soon';
-				$sent = self::deliver( $row, array( 'title' => 'Your bet slip', 'body' => $when . '. ' . $what . ' are still waiting.', 'url' => $meta['url'], 'tag' => 'slip' ), 'high' );
-				$meta['kick_sent'] = $now;
-			} elseif ( empty( $meta['idle_sent'] ) && (int) $meta['updated_at'] < $now - 30 * MINUTE_IN_SECONDS ) {
-				$sent = self::deliver( $row, array( 'title' => 'Still thinking it over?', 'body' => $what . ' are on your bet slip.', 'url' => $meta['url'], 'tag' => 'slip' ) );
-				$meta['idle_sent'] = $now;
-			} else {
+			if ( empty( $row->wants_reminder ) || $quiet || ( $row->sent_day === $today && (int) $row->sent_count >= (int) Ace_Nudge_Settings::get( 'daily_cap' ) ) ) {
 				continue;
 			}
+			$n    = (int) $meta['count'];
+			if ( ! empty( $meta['kick_sent'] ) || ! $first || $first - $now > 15 * MINUTE_IN_SECONDS ) {
+				continue;
+			}
+			// Factual only: what starts when and what the slip holds. No potential returns, no "still waiting".
+			$what = $n . ' pick' . ( 1 === $n ? '' : 's' ) . ( ! empty( $meta['type'] ) ? ' as a ' . strtolower( (string) $meta['type'] ) : '' );
+			$pick = null;
+			foreach ( (array) $meta['picks'] as $p ) {
+				if ( (int) $p['start'] === $first ) {
+					$pick = $p;
+					break;
+				}
+			}
+			$when = $pick && ! empty( $pick['event'] ) ? $pick['event'] . ' starts in ' . max( 1, (int) ceil( ( $first - $now ) / MINUTE_IN_SECONDS ) ) . ' minutes' : 'The first event on your slip starts soon';
+			$sent = self::deliver( $row, array( 'title' => 'Your bet slip', 'body' => $when . '. Your slip has ' . $what . '.', 'url' => $meta['url'], 'tag' => 'slip' ) );
+			$meta['kick_sent'] = $now;
 			$wpdb->update( $follows, array( 'meta' => wp_json_encode( $meta ) ), array( 'id' => $row->follow_id ), array( '%s' ), array( '%d' ) );
 			if ( $sent ) {
-				$wpdb->update( $subs, array( 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $row->id ) );
+				$count = $row->sent_day === $today ? (int) $row->sent_count : 0;
+				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $count + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $row->id ) );
 			}
 		}
 	}
