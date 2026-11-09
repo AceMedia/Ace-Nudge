@@ -50,13 +50,15 @@ class Ace_Nudge_Feed {
 	}
 
 	public static function respond() {
+		// A minute at most, so a tab that checks once a minute sees what has happened since. Publishing
+		// clears it at once; readers' browsers ask for the current minute's copy, so everyone shares it.
 		$items = get_transient( self::CACHE );
 		if ( ! is_array( $items ) ) {
 			$items = self::build();
-			set_transient( self::CACHE, $items, 5 * MINUTE_IN_SECONDS );
+			set_transient( self::CACHE, $items, MINUTE_IN_SECONDS );
 		}
 		$res = new WP_REST_Response( array( 'days' => self::DAYS, 'now' => time(), 'items' => $items ) );
-		$res->header( 'Cache-Control', 'public, max-age=300' );
+		$res->header( 'Cache-Control', 'public, max-age=60' );
 		return $res;
 	}
 

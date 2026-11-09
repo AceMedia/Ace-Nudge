@@ -644,7 +644,7 @@
 	const loadFeed = () => {
 		if (feedAsked || !cfg.feed) return;
 		feedAsked = true;
-		fetch(cfg.feed, { credentials: 'omit' }).then((r) => (r.ok ? r.json() : Promise.reject(r))).then((j) => {
+		fetch(cfg.feed + (cfg.feed.indexOf('?') === -1 ? '?' : '&') + 'm=' + Math.floor(Date.now() / 60000), { credentials: 'omit' }).then((r) => (r.ok ? r.json() : Promise.reject(r))).then((j) => {
 			feed = j;
 			feedDays = parseInt(j.days, 10) || 5;
 			compute();
@@ -652,13 +652,21 @@
 		}).catch(() => { feedAsked = false; });
 	};
 	const idle = (f) => ('requestIdleCallback' in window ? requestIdleCallback(f, { timeout: 3000 }) : setTimeout(f, 1200));
-	// While the page stays open, look again every four minutes (only when it is in view), so
-	// something new arriving mid-visit still gets its bubble and its sound.
-	setInterval(() => {
+	// While the tab is the one in view, look again once a minute, and straight away on coming back to it
+	// after a minute away, so anything new arrives in place with its bubble, count and sound, without a
+	// refresh. Background tabs do nothing (push covers those). Each check asks for the current minute's
+	// copy of the shared feed, so all readers share one cached answer per minute.
+	let lastCheck = Date.now();
+	const checkAgain = () => {
 		if (document.hidden) return;
+		lastCheck = Date.now();
 		if (feed) { feedAsked = false; loadFeed(); }
 		if (slipCfg) { slipAsked = ''; loadSlip(); }
-	}, 240000);
+	};
+	setInterval(checkAgain, 60000);
+	document.addEventListener('visibilitychange', () => {
+		if (!document.hidden && Date.now() - lastCheck > 60000) checkAgain();
+	});
 	// Nothing followed, nothing to tell: the list stays empty and the feed isn't fetched.
 	const followsChanged = () => {
 		const hasSlip = !!slipCfg && slipPicks().some((p) => p.market_id && !p.example);
