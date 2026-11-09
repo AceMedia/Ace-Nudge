@@ -680,6 +680,57 @@
 	// A small bubble from the bell names the newest unread item, once per item. It overlays the page
 	// (nothing moves), leaves on its own after six seconds unless pointed at or focused, and never
 	// shows inside the app pages a site names (the bet calculator, the map).
+	// A short arcade "ding-ding", like a fruit machine paying out, as a notification comes in. It is
+	// made in the browser (no sound file to load): two bright bell notes, each a square wave softened
+	// by a triangle an octave up, dying away quickly. Browsers only let a page make sound once the
+	// reader has interacted with it, so if it is not allowed yet it waits for their first tap or key
+	// while the bubble is showing, and otherwise stays silent.
+	let audio = null;
+	const ding = (forMs) => {
+		const Ctx = window.AudioContext || window.webkitAudioContext;
+		if (!Ctx) return;
+		const play = () => {
+			try {
+				audio = audio || new Ctx();
+				const go = () => {
+					const t0 = audio.currentTime + 0.01;
+					const out = audio.createGain();
+					out.gain.value = 0.16;
+					out.connect(audio.destination);
+					[[1568, 0], [2093, 0.12]].forEach(([f, at]) => {
+						[['square', f, 0.35], ['triangle', f * 2, 0.5]].forEach(([type, freq, level]) => {
+							const o = audio.createOscillator();
+							const g = audio.createGain();
+							o.type = type;
+							o.frequency.value = freq;
+							g.gain.setValueAtTime(0.0001, t0 + at);
+							g.gain.exponentialRampToValueAtTime(level, t0 + at + 0.006);
+							g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.38);
+							o.connect(g);
+							g.connect(out);
+							o.start(t0 + at);
+							o.stop(t0 + at + 0.4);
+						});
+					});
+				};
+				if (audio.state === 'running') return go(), true;
+				audio.resume().then(() => { if (audio.state === 'running') go(); }, () => {});
+				return audio.state === 'running';
+			} catch (e) { return true; }
+		};
+		const allowed = navigator.userActivation ? navigator.userActivation.hasBeenActive : false;
+		if (allowed) { play(); return; }
+		const until = Date.now() + forMs;
+		const once = () => {
+			document.removeEventListener('pointerdown', once, true);
+			document.removeEventListener('keydown', once, true);
+			if (Date.now() <= until) play();
+		};
+		document.addEventListener('pointerdown', once, true);
+		document.addEventListener('keydown', once, true);
+		setTimeout(() => { document.removeEventListener('pointerdown', once, true); document.removeEventListener('keydown', once, true); }, forMs);
+	};
+
 	let bubbleEl = null;
 	let reloaded = false;
 	try { const nav = performance.getEntriesByType('navigation')[0]; reloaded = !!nav && nav.type === 'reload'; } catch (e) {}
@@ -695,6 +746,7 @@
 		reloaded = false;
 		fresh.forEach((n) => { shown[n.id] = nowS(); });
 		saveMap('shown', shown);
+		ding(6000);
 		const first = fresh[0];
 		const r = bell.getBoundingClientRect();
 		const right = Math.max(8, Math.round(window.innerWidth - r.right));
