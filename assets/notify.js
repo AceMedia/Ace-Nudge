@@ -759,7 +759,24 @@
 	let bubbleEl = null;
 	let reloaded = false;
 	try { const nav = performance.getEntriesByType('navigation')[0]; reloaded = !!nav && nav.type === 'reload'; } catch (e) {}
+	// While the page plays its first-load intro, the bubble (and its sound) waits, then arrives a moment
+	// after everything else has come in. cfg.holdWhile names what to wait for on the <html> element.
+	const HOLD = cfg.holdWhile || '.pp-intro, .pp-intro-c';
+	let holding = null;
+	const held = () => { try { return document.documentElement.matches(HOLD); } catch (e) { return false; } };
+	const afterIntro = (fn) => {
+		if (holding) return;
+		holding = new MutationObserver(() => {
+			if (held()) return;
+			holding.disconnect();
+			holding = null;
+			setTimeout(fn, 600);
+		});
+		holding.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+		setTimeout(() => { if (holding) { holding.disconnect(); holding = null; fn(); } }, 12000); // never wait for ever
+	};
 	const bubble = () => {
+		if (held()) return afterIntro(bubble);
 		const bell = bells[0];
 		if (!bell || !bell.getClientRects().length || bubbleEl) return;
 		if (cfg.quietOn && document.querySelector(cfg.quietOn)) return;
