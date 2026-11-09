@@ -684,11 +684,12 @@
 	// made in the browser (no sound file to load): two bright bell notes, each a square wave softened
 	// by a triangle an octave up, dying away quickly. Browsers only let a page make sound once the
 	// reader has interacted with it, so if it is not allowed yet it waits for their first tap or key
-	// while the bubble is showing, and otherwise stays silent.
+	// while the bubble is showing, and otherwise stays silent. Readers can switch it off in Alerts.
 	let audio = null;
+	const soundOn = () => store.get('sound') !== 'off';
 	const ding = (forMs) => {
 		const Ctx = window.AudioContext || window.webkitAudioContext;
-		if (!Ctx) return;
+		if (!Ctx || !soundOn()) return;
 		const play = () => {
 			try {
 				audio = audio || new Ctx();
@@ -804,6 +805,10 @@
 		// Bets recommended from sports this reader reads (kept on this device): on unless switched off.
 		recommending: () => recoOn(),
 		setRecommending: (on) => setReco(!!on),
+		// The ding as a notification comes in: on unless switched off, kept in this browser. Switching
+		// it on plays it once, so the reader hears what they chose.
+		sound: () => soundOn(),
+		setSound: (on) => { store.set('sound', on ? 'on' : 'off'); if (on) ding(0); },
 		hasSlip: () => !!slipCfg,
 		markAllRead: () => markAllRead(),
 		dismiss: (id) => dismissNote(id),
