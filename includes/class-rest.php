@@ -140,7 +140,9 @@ class Ace_Nudge_Rest {
 			$id = (string) $r->get_param( 'id' );
 			// slipprices: price changes on the slip; slipremind: a reminder before the slip's first event;
 			// tips: new tips in what they follow. All off by default.
-			return in_array( $id, array( 'all', 'reads', 'slipprices', 'slipremind', 'tips' ), true ) ? array( 'site', $id, array() ) : null;
+			// Other plugins add their own opt-in alerts here (ace_nudge_site_follows: id => label).
+			$ids = array_merge( array( 'all', 'reads', 'slipprices', 'slipremind', 'tips' ), array_keys( Ace_Nudge_Settings::extra_site_follows() ) );
+			return in_array( $id, $ids, true ) ? array( 'site', $id, array() ) : null;
 		}
 		if ( 'post' === $type ) {
 			$post = get_post( (int) $r->get_param( 'post_id' ) );

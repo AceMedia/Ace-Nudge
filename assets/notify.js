@@ -388,6 +388,11 @@
 		if (follows.includes('site:all')) list.unshift({ key: 'site:all', keys: ['site:all'], type: 'site', label: 'Everything on ' + cfg.name });
 		if (follows.includes('site:reads')) list.push({ key: 'site:reads', keys: ['site:reads'], type: 'site', label: 'Updates to what I\'ve read' });
 		['site:all', 'site:reads'].forEach((k) => seen.add(k));
+		// Alerts other plugins offer (a predictor's round updates), with the names they gave them.
+		Object.entries(cfg.siteLabels || {}).forEach(([id, label]) => {
+			const k = 'site:' + id;
+			if (follows.includes(k)) { list.push({ key: k, keys: [k], type: 'site', label }); seen.add(k); }
+		});
 		(cfg.categories || []).forEach((c) => {
 			const keys = c.ids.map((id) => 'category:' + id).filter((k) => follows.includes(k) && !seen.has(k));
 			if (!keys.length) return;

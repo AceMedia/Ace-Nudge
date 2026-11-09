@@ -152,6 +152,7 @@ class Ace_Nudge_Front {
 			'vapid'   => Ace_Nudge_Push::keys()['public'],
 			'targets' => $targets,
 			'categories' => self::top_categories(),
+			'siteLabels' => Ace_Nudge_Settings::extra_site_follows(),
 			'ordersWording' => Ace_Nudge_Store::wording( 'orders' ),
 			'newsletter' => (bool) Ace_Nudge_Settings::get( 'newsletter' ),
 			'minAge'  => Ace_Nudge_Settings::min_age(),

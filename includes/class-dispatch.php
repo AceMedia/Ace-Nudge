@@ -264,6 +264,36 @@ class Ace_Nudge_Dispatch {
 		}
 	}
 
+	/**
+	 * Send one message to everyone who switched on an alert another plugin offers (site:<id>), within
+	 * each reader's daily cap. Returns false without sending during quiet hours, so the caller tries
+	 * again later; true once it has gone (to however many were due one).
+	 */
+	public static function broadcast( $id, array $message ) {
+		global $wpdb;
+		if ( ! array_key_exists( $id, Ace_Nudge_Settings::extra_site_follows() ) ) {
+			return true;
+		}
+		if ( self::quiet_now() ) {
+			return false;
+		}
+		$follows = Ace_Nudge_Store::t( 'follows' );
+		$subs    = Ace_Nudge_Store::t( 'subscribers' );
+		$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT s.* FROM $subs s JOIN $follows f ON f.subscriber_id = s.id
+			WHERE s.channel = 'push' AND s.status = 'active' AND f.type = 'site' AND f.object_id = %s", $id ) );
+		$today   = gmdate( 'Y-m-d' );
+		foreach ( $rows as $sub ) {
+			$sent = $sub->sent_day === $today ? (int) $sub->sent_count : 0;
+			if ( $sent >= (int) Ace_Nudge_Settings::get( 'daily_cap' ) ) {
+				continue;
+			}
+			if ( self::deliver( $sub, $message ) ) {
+				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $sent + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $sub->id ) );
+			}
+		}
+		return true;
+	}
+
 	/** Whether it is within the quiet hours (site time) that grouped alerts wait out. */
 	private static function quiet_now() {
 		$hour  = (int) ( new DateTimeImmutable( 'now', new DateTimeZone( 'Europe/London' ) ) )->format( 'G' );

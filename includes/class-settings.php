@@ -62,4 +62,19 @@ class Ace_Nudge_Settings {
 			'logo'    => '',
 		) );
 	}
+
+	/**
+	 * Opt-in alerts other plugins offer (a bracket predictor's round updates, say), as id => label. Ids
+	 * are lower case letters, digits and hyphens; anything else is dropped. Each is off until a reader
+	 * switches it on, and is sent with Ace_Nudge_Dispatch::broadcast().
+	 */
+	public static function extra_site_follows() {
+		$out = array();
+		foreach ( (array) apply_filters( 'ace_nudge_site_follows', array() ) as $id => $label ) {
+			if ( preg_match( '/^[a-z0-9-]{1,40}$/', (string) $id ) && ! in_array( $id, array( 'all', 'reads', 'slipprices', 'slipremind', 'tips' ), true ) ) {
+				$out[ (string) $id ] = wp_strip_all_tags( (string) $label );
+			}
+		}
+		return $out;
+	}
 }
