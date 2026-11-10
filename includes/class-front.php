@@ -140,6 +140,12 @@ class Ace_Nudge_Front {
 
 	public static function assets() {
 		$targets = self::targets();
+		$bell_selector = (string) apply_filters( 'ace_nudge_bell_selector', '' );
+		if ( '' !== $bell_selector ) {
+			add_action( 'wp_footer', function () use ( $bell_selector ) {
+				self::bell_slot( $bell_selector );
+			}, 5 );
+		}
 		$base = ACE_NUDGE_DIR . '/assets/';
 		$brand = Ace_Nudge_Settings::brand();
 		wp_enqueue_style( 'ace-nudge', ACE_NUDGE_URL . 'assets/notify.css', array(), (string) filemtime( $base . 'notify.css' ) );
@@ -159,7 +165,7 @@ class Ace_Nudge_Front {
 			'autoBar' => (bool) Ace_Nudge_Settings::get( 'auto_bar' ),
 			'name'    => Ace_Nudge_Settings::brand()['name'],
 			'footerAfter' => (string) apply_filters( 'ace_nudge_footer_selector', '' ),
-			'bell'    => (string) apply_filters( 'ace_nudge_bell_selector', '' ),
+			'bell'    => $bell_selector,
 			'host'    => (string) apply_filters( 'ace_nudge_host_selector', '' ),
 			'post_id' => is_singular( Ace_Nudge_Settings::post_types() ) ? get_the_ID() : 0,
 			// When the post on this page last changed, so the browser knows which version it has seen.
@@ -178,5 +184,19 @@ class Ace_Nudge_Front {
 			// Grouped alerts wait out these hours (site time); the settings panel says so.
 			'quiet'   => array( 'start' => (int) Ace_Nudge_Settings::get( 'quiet_start' ), 'end' => (int) Ace_Nudge_Settings::get( 'quiet_end' ) ),
 		) );
+	}
+
+	/**
+	 * The bell's place in the header, held from the moment the page is parsed. notify.js loads deferred,
+	 * after scripts in the footer (a header menu that fits its items to the room, say) have measured the
+	 * header without it; when the bell then arrived the room changed and the menu was fitted again,
+	 * moving an item in or out of its overflow. This puts the same button in its place early, before
+	 * those scripts run; notify.js takes it over (or removes it where no bell is shown).
+	 *
+	 * @param string $selector Where the bell goes: before this element.
+	 */
+	private static function bell_slot( $selector ) {
+		$svg = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6v-5a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>';
+		echo '<script id="ace-nudge-bell-slot">(function(s,h){try{var t=document.querySelector(s);if(!t||document.querySelector(".ace-nudge-bell"))return;var b=document.createElement("button");b.type="button";b.className="ace-nudge-bell ace-nudge-bell--slot";b.setAttribute("aria-label","Alerts and newsletter");b.title="Alerts and newsletter";b.innerHTML=h;t.before(b);}catch(e){}})(' . wp_json_encode( $selector ) . ',' . wp_json_encode( $svg . '<span class="ace-nudge-bell__count" hidden></span>' ) . ');</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput
 	}
 }

@@ -32,7 +32,12 @@
 		const placeBell = () => {
 			const panel = settingsPanel();
 			const search = cfg.bell && document.querySelector(cfg.bell);
-			if (!panel || !search || document.querySelector('.ace-nudge-bell')) return;
+			const slot = document.querySelector('.ace-nudge-bell--slot');
+			if (!panel || !search) {
+				if (slot) slot.remove();
+				return;
+			}
+			if (document.querySelector('.ace-nudge-bell:not(.ace-nudge-bell--slot)')) return;
 			const bell = document.createElement('button');
 			bell.type = 'button';
 			bell.className = 'ace-nudge-bell';
@@ -40,7 +45,7 @@
 			bell.title = 'Alerts and newsletter';
 			bell.innerHTML = bellSvg;
 			bell.addEventListener('click', () => panel.open('alerts', bell));
-			search.before(bell);
+			if (slot) slot.replaceWith(bell); else search.before(bell);
 		};
 		document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', placeBell) : placeBell();
 	};
@@ -996,7 +1001,9 @@
 		if (search) {
 			const bell = el('button', { type: 'button', class: 'ace-nudge-bell', 'aria-label': 'Alerts and newsletter', title: 'Alerts and newsletter', on: { click: () => (settingsPanel() ? openNotes(bell) : openManage(null, bell)) } });
 			bell.innerHTML = bellSvg + '<span class="ace-nudge-bell__count" hidden></span>';
-			search.before(bell);
+			// The footer put a stand-in here as the page was parsed (class-front.php); take its place.
+			const slot = document.querySelector('.ace-nudge-bell--slot');
+			if (slot) slot.replaceWith(bell); else search.before(bell);
 			bells.push(bell);
 		}
 
