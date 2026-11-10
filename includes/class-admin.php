@@ -25,8 +25,11 @@ class Ace_Nudge_Admin {
 		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
 			return;
 		}
-		if ( ! wp_script_is( 'ace-savebar', 'registered' ) && defined( 'ACE_SEO_URL' ) && defined( 'ACE_SEO_PATH' ) && file_exists( ACE_SEO_PATH . 'build/savebar.js' ) ) {
-			wp_register_script( 'ace-savebar', ACE_SEO_URL . 'build/savebar.js', array( 'jquery' ), ACE_NUDGE_VERSION, true );
+		// Crawl 1.0.98 names its constants ACECRAWL_*; earlier versions used ACE_SEO_*.
+		$path = defined( 'ACECRAWL_PATH' ) ? ACECRAWL_PATH : ( defined( 'ACE_SEO_PATH' ) ? ACE_SEO_PATH : '' );
+		$url  = defined( 'ACECRAWL_URL' ) ? ACECRAWL_URL : ( defined( 'ACE_SEO_URL' ) ? ACE_SEO_URL : '' );
+		if ( ! wp_script_is( 'ace-savebar', 'registered' ) && $path && $url && file_exists( $path . 'build/savebar.js' ) ) {
+			wp_register_script( 'ace-savebar', $url . 'build/savebar.js', array( 'jquery' ), ACE_NUDGE_VERSION, true );
 		}
 		if ( wp_script_is( 'ace-savebar', 'registered' ) ) {
 			wp_enqueue_script( 'ace-savebar' );
