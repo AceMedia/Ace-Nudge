@@ -95,7 +95,7 @@ html.pp-dark-mode .ace-nudge-bell .ace-nudge-bell__count { background: var(--wp-
 .ace-nudge-bubble__more { font-size: 12px; opacity: .8; }
 /* The close button sits centred down the bubble's right, clear of the pointer, and draws its own X so
    it is truly centred (the × character sits low in most fonts). The pointer stays on top of it. */
-.ace-nudge-bubble__close { position: relative; flex: 0 0 auto; align-self: center; width: 40px; height: 40px; margin: 0 6px 0 0; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; font-size: 0; line-height: 0; cursor: pointer; }
+.ace-nudge-bubble__close { position: relative; flex: 0 0 auto; align-self: center; width: 40px; height: 40px; margin: 10px 6px 6px 0; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; font-size: 0; line-height: 0; cursor: pointer; }
 .ace-nudge-bubble__close::before, .ace-nudge-bubble__close::after { content: ""; position: absolute; left: 50%; top: 50%; width: 20px; height: 2.5px; border-radius: 2px; background: currentColor; transform: translate(-50%, -50%) rotate(45deg); }
 .ace-nudge-bubble__close::after { transform: translate(-50%, -50%) rotate(-45deg); }
 .ace-nudge-bubble__close:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
