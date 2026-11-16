@@ -803,7 +803,55 @@
 		b.style.setProperty('--ace-nudge-bubble-arrow', Math.max(12, Math.round(window.innerWidth - r.right - right + r.width / 2 - 7)) + 'px');
 		const LIFE = o.life || 6000;
 		const bar = el('span', { class: 'ace-nudge-bubble__timer', 'aria-hidden': 'true' }, el('span', {}));
-		const flag = o.label ? el('span', { class: 'ace-nudge-bubble__flag' }, el('span', { class: 'ace-nudge-bubble__chip', 'data-kind': o.kind || 'new' }, o.label)) : null;
+		// The label is a small flag that sits across the bubble's left edge. It is the bubble's sibling,
+		// not its child, so it can pass behind the bubble and in front of it.
+		const flag = o.label ? el('span', { class: 'ace-nudge-bubble-flag is-waiting', 'data-kind': o.kind || 'new', 'aria-hidden': 'true' }, o.label) : null;
+		const Z = 100001;
+		const rnd = (a, c) => a + Math.random() * (c - a);
+		let flagOut = false;
+		let flagAnim = null;
+		const placeFlag = () => {
+			const box = b.getBoundingClientRect();
+			flag.style.left = Math.round(box.left - flag.offsetWidth / 2) + 'px';
+			flag.style.top = Math.round(box.top + 14) + 'px';
+		};
+		// The flag pokes out from behind the bubble to the left until it is clear of the edge, then
+		// comes in front and tucks back over the edge into its place with a small spring and a tilt.
+		const flagIn = () => {
+			if (!flag || bubbleEl !== b) return;
+			placeFlag();
+			if (calm || !flag.animate) { flag.classList.remove('is-waiting'); flagOut = true; return; }
+			const clear = flag.offsetWidth / 2 + 3;
+			const tilt = (Math.random() < 0.5 ? -1 : 1) * rnd(2, 4);
+			flag.style.zIndex = String(Z - 1);
+			flag.classList.remove('is-waiting');
+			flagOut = true;
+			flagAnim = flag.animate([{ translate: clear + 'px 0', rotate: '0deg' }, { translate: -clear + 'px 0', rotate: '0deg' }], { duration: rnd(680, 820), easing: 'cubic-bezier(.42, 0, .58, 1)', fill: 'forwards' });
+			flagAnim.onfinish = () => {
+				flag.style.zIndex = String(Z + 1);
+				flagAnim.cancel();
+				flagAnim = flag.animate([
+					{ translate: -clear + 'px 0', rotate: '0deg', offset: 0, easing: 'cubic-bezier(.16, .8, .25, 1)' },
+					{ translate: '1.5px 0', rotate: tilt + 'deg', offset: 0.65, easing: 'cubic-bezier(.35, 0, .65, 1)' },
+					{ translate: '-.5px 0', rotate: (-tilt * 0.3) + 'deg', offset: 0.85, easing: 'cubic-bezier(.35, 0, .65, 1)' },
+					{ translate: '0 0', rotate: '0deg', offset: 1 },
+				], { duration: rnd(220, 280), easing: 'linear' });
+			};
+		};
+		// The reverse: out from its place to the left, then back under the bubble.
+		const flagAway = (done) => {
+			if (!flag) return done();
+			if (flagAnim) { flagAnim.onfinish = null; flagAnim.cancel(); flagAnim = null; }
+			if (!flagOut || calm || !flag.animate) { flag.remove(); return done(); }
+			const clear = flag.offsetWidth / 2 + 3;
+			flag.style.zIndex = String(Z + 1);
+			const lift = flag.animate([{ translate: '0 0', rotate: '0deg' }, { translate: -clear + 'px 0', rotate: '0deg' }], { duration: 150, easing: 'cubic-bezier(.35, 0, .65, 1)', fill: 'forwards' });
+			lift.onfinish = () => {
+				flag.style.zIndex = String(Z - 1);
+				const under = flag.animate([{ translate: -clear + 'px 0', rotate: '0deg' }, { translate: clear + 'px 0', rotate: '0deg' }], { duration: 260, easing: 'cubic-bezier(.4, 0, .8, .3)', fill: 'forwards' });
+				under.onfinish = () => { flag.remove(); done(); };
+			};
+		};
 		let timer = null;
 		let run = null;
 		let left = LIFE;
@@ -817,7 +865,7 @@
 			bubbleEl = null;
 			document.removeEventListener('keydown', onKey);
 			const gone = () => { b.remove(); if (o.onDone) o.onDone(why || 'closed'); };
-			if (calm || !b.animate) return gone();
+			if (calm || !b.animate) { if (flag) flag.remove(); return gone(); }
 			const leave = () => {
 				const out = why === 'time'
 					? b.animate([{ opacity: 1, transform: 'none' }, { opacity: 1, transform: 'translateX(-8px)', offset: .25 }, { opacity: 0, transform: 'translateX(calc(100% + 32px))' }], { duration: 420, easing: 'cubic-bezier(.5,0,.8,.4)' })
@@ -825,11 +873,7 @@
 				out.finished.then(gone, gone);
 			};
 			// The flag goes back behind the bubble first, then the bubble leaves.
-			if (flag && b.classList.contains('has-flag')) {
-				b.classList.remove('has-flag');
-				return setTimeout(leave, 170);
-			}
-			leave();
+			flagAway(leave);
 		};
 		const onKey = (e) => { if (e.key === 'Escape') close(); };
 		const hold = () => {
@@ -853,7 +897,6 @@
 					o.sub ? el('span', { class: 'ace-nudge-bubble__more' }, o.sub) : '')),
 			el('button', { type: 'button', class: 'ace-nudge-bubble__close', 'aria-label': 'Dismiss', on: { click: () => close() } }, '×'),
 			bar);
-		if (flag) b.append(flag);
 		b.addEventListener('mouseenter', hold);
 		b.addEventListener('mouseleave', wait);
 		b.addEventListener('focusin', hold);
@@ -862,12 +905,13 @@
 		document.addEventListener('ace-sheet:open', () => close(), { once: true });
 		window.addEventListener('resize', () => close(), { once: true });
 		document.body.append(b);
+		if (flag) document.body.append(flag);
 		bubbleEl = b;
 		if (!calm && b.animate) {
 			b.animate([{ opacity: 0, transform: 'translateY(-10px) scale(.6)' }, { opacity: 1, transform: 'translateY(2px) scale(1.02)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.8,.3,1)' });
-			flagTimer = setTimeout(() => b.classList.add('has-flag'), 420);
+			flagTimer = setTimeout(flagIn, 420);
 		} else {
-			b.classList.add('has-flag');
+			flagIn();
 		}
 		if (!calm && bar.firstChild.animate) {
 			run = bar.firstChild.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: LIFE, easing: 'linear', fill: 'forwards' });
