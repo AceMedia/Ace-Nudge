@@ -179,6 +179,18 @@ class Ace_Nudge_Front {
 			'slip'    => (array) apply_filters( 'ace_nudge_slip_config', array() ),
 			// Pages that are apps in their own right, where the notification bubble would be in the way.
 			'quietOn' => (string) apply_filters( 'ace_nudge_bubble_quiet_selector', '' ),
+			// What a reader who follows nothing yet is shown round, one bubble after another: alerts
+			// first, then any step a site adds (id, label, title, text, target selector, icon).
+			'onboard' => array_values( (array) apply_filters( 'ace_nudge_onboarding', array(
+				array(
+					'id'     => 'alerts',
+					'label'  => __( 'Alerts', 'ace-nudge' ),
+					'title'  => __( 'Get alerts for what you follow', 'ace-nudge' ),
+					'text'   => __( 'Choose your topics here and we will tell you when there is something new.', 'ace-nudge' ),
+					'target' => 'bell',
+					'icon'   => 'bell',
+				),
+			) ) ),
 			'wording' => array( 'push' => Ace_Nudge_Store::wording( 'push' ), 'email' => Ace_Nudge_Store::wording( 'email' ), 'reads' => Ace_Nudge_Store::wording( 'reads' ) ),
 			'privacy' => esc_url_raw( (string) get_privacy_policy_url() ),
 			// Grouped alerts wait out these hours (site time); the settings panel says so.

@@ -785,49 +785,51 @@
 		holding.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 		setTimeout(() => { if (holding) { holding.disconnect(); holding = null; fn(); } }, 12000); // never wait for ever
 	};
-	const bubble = () => {
-		if (held()) return afterIntro(bubble);
-		const bell = bells[0];
-		if (!bell || !bell.getClientRects().length || bubbleEl) return;
-		if (cfg.quietOn && document.querySelector(cfg.quietOn)) return;
-		if (document.documentElement.classList.contains('has-modal-open') || document.querySelector('dialog[open]')) return;
-		// A reload (hard refresh included) shows the bubble again for what is unread, so it can be
-		// previewed; an ordinary visit tells each item once.
-		const fresh = notes.filter((n) => n.unread && (reloaded || !shown[n.id]));
-		if (!fresh.length) return;
-		reloaded = false;
-		fresh.forEach((n) => { shown[n.id] = nowS(); });
-		saveMap('shown', shown);
-		ding(fresh[0].group === 'slip' ? 'slip' : 'site', 6000);
-		const first = fresh[0];
-		const r = bell.getBoundingClientRect();
+	// One bubble at a time, hung from an element in the header (the bell, or whatever an onboarding
+	// step points at). It names one thing: a picture or an icon, a title and a line under it, top
+	// aligned, with its label on a flag that slides out from behind its left edge once it has arrived
+	// and tucks back in before it goes. A bar along its foot shows how long it has left; pointing at
+	// the bubble or focusing inside it holds the bar, and leaving lets it carry on. When it runs out
+	// the bubble slides off to the side; a dismissal just tucks away. With reduced motion there is no
+	// bar or flag movement: the same time is kept on a plain timer, held and resumed the same way.
+	const showBubble = (o) => {
+		const anchor = o.anchor;
+		if (!anchor || !anchor.getClientRects().length || bubbleEl) return false;
+		const r = anchor.getBoundingClientRect();
 		const right = Math.max(8, Math.round(window.innerWidth - r.right));
-		const b = el('div', { class: 'ace-nudge-bubble', role: 'status', 'aria-live': 'polite' });
+		const b = el('div', { class: 'ace-nudge-bubble' + (o.onboard ? ' ace-nudge-bubble--onboard' : ''), role: 'status', 'aria-live': 'polite' });
 		b.style.top = Math.round(r.bottom + 10) + 'px';
 		b.style.right = right + 'px';
 		b.style.setProperty('--ace-nudge-bubble-arrow', Math.max(12, Math.round(window.innerWidth - r.right - right + r.width / 2 - 7)) + 'px');
-		// How long the bubble stays, shown as a bar along its foot that runs down from full. Pointing at
-		// the bubble or focusing inside it holds the bar where it is; leaving lets it carry on from there.
-		// When it runs out the bubble slides off to the side; a dismissal just tucks away. With reduced
-		// motion there is no bar: the same time is kept on a plain timer, held and resumed the same way.
-		const LIFE = 6000;
+		const LIFE = o.life || 6000;
 		const bar = el('span', { class: 'ace-nudge-bubble__timer', 'aria-hidden': 'true' }, el('span', {}));
+		const flag = o.label ? el('span', { class: 'ace-nudge-bubble__flag' }, el('span', { class: 'ace-nudge-bubble__chip', 'data-kind': o.kind || 'new' }, o.label)) : null;
 		let timer = null;
 		let run = null;
 		let left = LIFE;
 		let since = 0;
-		const close = (e, ranOut) => {
-			if (!bubbleEl) return;
+		let flagTimer = null;
+		const close = (e, why) => {
+			if (bubbleEl !== b) return;
 			clearTimeout(timer);
+			clearTimeout(flagTimer);
 			if (run) { run.onfinish = null; run.cancel(); run = null; }
-			const node = bubbleEl;
 			bubbleEl = null;
 			document.removeEventListener('keydown', onKey);
-			if (calm || !node.animate) return node.remove();
-			const out = ranOut === true
-				? node.animate([{ opacity: 1, transform: 'none' }, { opacity: 1, transform: 'translateX(-8px)', offset: .25 }, { opacity: 0, transform: 'translateX(calc(100% + 32px))' }], { duration: 420, easing: 'cubic-bezier(.5,0,.8,.4)' })
-				: node.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-6px) scale(.96)' }], { duration: 180, easing: 'ease-in' });
-			out.finished.then(() => node.remove(), () => node.remove());
+			const gone = () => { b.remove(); if (o.onDone) o.onDone(why || 'closed'); };
+			if (calm || !b.animate) return gone();
+			const leave = () => {
+				const out = why === 'time'
+					? b.animate([{ opacity: 1, transform: 'none' }, { opacity: 1, transform: 'translateX(-8px)', offset: .25 }, { opacity: 0, transform: 'translateX(calc(100% + 32px))' }], { duration: 420, easing: 'cubic-bezier(.5,0,.8,.4)' })
+					: b.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-6px) scale(.96)' }], { duration: 180, easing: 'ease-in' });
+				out.finished.then(gone, gone);
+			};
+			// The flag goes back behind the bubble first, then the bubble leaves.
+			if (flag && b.classList.contains('has-flag')) {
+				b.classList.remove('has-flag');
+				return setTimeout(leave, 170);
+			}
+			leave();
 		};
 		const onKey = (e) => { if (e.key === 'Escape') close(); };
 		const hold = () => {
@@ -838,17 +840,20 @@
 			if (run) return run.play();
 			clearTimeout(timer);
 			since = Date.now();
-			timer = setTimeout(() => close(null, true), left);
+			timer = setTimeout(() => close(null, 'time'), left);
 		};
+		let media = '';
+		if (o.thumb) media = el('img', { class: 'ace-nudge-bubble__thumb', src: o.thumb, alt: '', width: '44', height: '44', decoding: 'async' });
+		else if (o.icon) { media = el('span', { class: 'ace-nudge-bubble__icon', 'aria-hidden': 'true' }); media.innerHTML = o.icon; }
 		b.append(
-			el('button', { type: 'button', class: 'ace-nudge-bubble__open', on: { click: () => { close(); openNotes(bell); } } },
-				first.thumb ? el('img', { class: 'ace-nudge-bubble__thumb', src: first.thumb, alt: '', width: '40', height: '40', decoding: 'async' }) : '',
+			el('button', { type: 'button', class: 'ace-nudge-bubble__open', on: { click: () => { close(null, 'opened'); if (o.onOpen) o.onOpen(); } } },
+				media,
 				el('span', { class: 'ace-nudge-bubble__text' },
-					el('span', { class: 'ace-nudge-bubble__chip', 'data-kind': first.kind }, first.label),
-					el('span', { class: 'ace-nudge-bubble__title' }, first.title),
-					fresh.length > 1 ? el('span', { class: 'ace-nudge-bubble__more' }, '+' + (fresh.length - 1) + ' more') : '')),
-			el('button', { type: 'button', class: 'ace-nudge-bubble__close', 'aria-label': 'Dismiss', on: { click: () => close() } }, '\u00d7'),
+					el('span', { class: 'ace-nudge-bubble__title' }, o.title),
+					o.sub ? el('span', { class: 'ace-nudge-bubble__more' }, o.sub) : '')),
+			el('button', { type: 'button', class: 'ace-nudge-bubble__close', 'aria-label': 'Dismiss', on: { click: () => close() } }, '×'),
 			bar);
+		if (flag) b.append(flag);
 		b.addEventListener('mouseenter', hold);
 		b.addEventListener('mouseleave', wait);
 		b.addEventListener('focusin', hold);
@@ -860,16 +865,66 @@
 		bubbleEl = b;
 		if (!calm && b.animate) {
 			b.animate([{ opacity: 0, transform: 'translateY(-10px) scale(.6)' }, { opacity: 1, transform: 'translateY(2px) scale(1.02)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.8,.3,1)' });
+			flagTimer = setTimeout(() => b.classList.add('has-flag'), 420);
+		} else {
+			b.classList.add('has-flag');
 		}
 		if (!calm && bar.firstChild.animate) {
 			run = bar.firstChild.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: LIFE, easing: 'linear', fill: 'forwards' });
-			run.onfinish = () => close(null, true);
+			run.onfinish = () => close(null, 'time');
 			// Already under the pointer as it arrives: it starts held.
 			if (b.matches(':hover')) run.pause();
 		} else {
 			b.classList.add('is-untimed');
 			wait();
 		}
+		return true;
+	};
+	const clear = () => !(cfg.quietOn && document.querySelector(cfg.quietOn)) && !document.documentElement.classList.contains('has-modal-open') && !document.querySelector('dialog[open]');
+	const bubble = () => {
+		if (held()) return afterIntro(bubble);
+		const bell = bells[0];
+		if (!bell || !bell.getClientRects().length || bubbleEl) return;
+		if (!clear()) return;
+		// A reload (hard refresh included) shows the bubble again for what is unread, so it can be
+		// previewed; an ordinary visit tells each item once.
+		const fresh = notes.filter((n) => n.unread && (reloaded || !shown[n.id]));
+		if (!fresh.length) return;
+		reloaded = false;
+		fresh.forEach((n) => { shown[n.id] = nowS(); });
+		saveMap('shown', shown);
+		ding(fresh[0].group === 'slip' ? 'slip' : 'site', 6000);
+		const first = fresh[0];
+		showBubble({ anchor: bell, label: first.label, kind: first.kind, title: first.title, thumb: first.thumb, sub: fresh.length > 1 ? '+' + (fresh.length - 1) + ' more' : '', onOpen: () => openNotes(bell) });
+	};
+
+	// A reader who follows nothing yet is shown round, once: a bubble from the bell saying what alerts
+	// are for, then one for each further step a site lists (cfg.onboard, the ace_nudge_onboarding
+	// filter), such as its settings menu. Each runs its time or is closed, then the next arrives. A step
+	// is told once per browser; a step whose target is not on the page is skipped.
+	const sliders = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+	const onboard = () => {
+		if (held()) return afterIntro(onboard);
+		if (bubbleEl || store.get('token') || follows.length || !clear()) return;
+		const told = loadMap('onboard');
+		const steps = (Array.isArray(cfg.onboard) ? cfg.onboard : []).filter((s) => s && s.id && s.title && !told[s.id]);
+		const next = () => {
+			const step = steps.shift();
+			if (!step || bubbleEl || !clear()) return;
+			const anchor = step.target === 'bell' || !step.target ? bells[0] : document.querySelector(step.target);
+			if (!anchor || !anchor.getClientRects().length) return next();
+			told[step.id] = nowS();
+			saveMap('onboard', told);
+			const shownIt = showBubble({
+				anchor, onboard: true, life: 8000, label: step.label, kind: 'tip', title: step.title, sub: step.text,
+				icon: step.icon === 'settings' ? sliders : bellSvg,
+				onOpen: () => (step.target === 'bell' || !step.target ? (settingsPanel() ? settingsPanel().open('alerts', anchor) : anchor.click()) : anchor.click()),
+				// Opening what a step points at ends the tour there; otherwise the next step follows.
+				onDone: (why) => { if (why !== 'opened') setTimeout(next, 500); },
+			});
+			if (!shownIt) next();
+		};
+		next();
 	};
 
 	cfg.api = {
@@ -1058,7 +1113,7 @@
 			prompts();
 			if (cfg.post_id && follows.includes('site:reads')) post('read', { token, post_id: cfg.post_id }).catch(() => {});
 		}).catch(() => { ready = true; paint(); });
-		if (!store.get('token')) { ready = true; paint(); followsChanged(); }
+		if (!store.get('token')) { ready = true; paint(); followsChanged(); idle(() => setTimeout(onboard, 1500)); }
 	};
 	document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', mount) : mount();
 })();
