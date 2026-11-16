@@ -806,18 +806,40 @@
 		b.style.top = Math.round(r.bottom + 10) + 'px';
 		b.style.right = right + 'px';
 		b.style.setProperty('--ace-nudge-bubble-arrow', Math.max(12, Math.round(window.innerWidth - r.right - right + r.width / 2 - 7)) + 'px');
+		// How long the bubble stays, shown as a bar along its foot that runs down from full. Pointing at
+		// the bubble or focusing inside it holds the bar where it is; leaving lets it carry on from there.
+		// When it runs out the bubble slides off to the side; a dismissal just tucks away. With reduced
+		// motion there is no bar: the same time is kept on a plain timer, held and resumed the same way.
+		const LIFE = 6000;
+		const bar = el('span', { class: 'ace-nudge-bubble__timer', 'aria-hidden': 'true' }, el('span', {}));
 		let timer = null;
-		const close = () => {
+		let run = null;
+		let left = LIFE;
+		let since = 0;
+		const close = (e, ranOut) => {
 			if (!bubbleEl) return;
 			clearTimeout(timer);
+			if (run) { run.onfinish = null; run.cancel(); run = null; }
 			const node = bubbleEl;
 			bubbleEl = null;
 			document.removeEventListener('keydown', onKey);
 			if (calm || !node.animate) return node.remove();
-			node.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-6px) scale(.96)' }], { duration: 180, easing: 'ease-in' }).finished.then(() => node.remove(), () => node.remove());
+			const out = ranOut === true
+				? node.animate([{ opacity: 1, transform: 'none' }, { opacity: 1, transform: 'translateX(-8px)', offset: .25 }, { opacity: 0, transform: 'translateX(calc(100% + 32px))' }], { duration: 420, easing: 'cubic-bezier(.5,0,.8,.4)' })
+				: node.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-6px) scale(.96)' }], { duration: 180, easing: 'ease-in' });
+			out.finished.then(() => node.remove(), () => node.remove());
 		};
 		const onKey = (e) => { if (e.key === 'Escape') close(); };
-		const wait = () => { clearTimeout(timer); timer = setTimeout(close, 6000); };
+		const hold = () => {
+			if (run) return run.pause();
+			if (timer) { clearTimeout(timer); timer = null; left = Math.max(0, left - (Date.now() - since)); }
+		};
+		const wait = () => {
+			if (run) return run.play();
+			clearTimeout(timer);
+			since = Date.now();
+			timer = setTimeout(() => close(null, true), left);
+		};
 		b.append(
 			el('button', { type: 'button', class: 'ace-nudge-bubble__open', on: { click: () => { close(); openNotes(bell); } } },
 				first.thumb ? el('img', { class: 'ace-nudge-bubble__thumb', src: first.thumb, alt: '', width: '40', height: '40', decoding: 'async' }) : '',
@@ -825,20 +847,29 @@
 					el('span', { class: 'ace-nudge-bubble__chip', 'data-kind': first.kind }, first.label),
 					el('span', { class: 'ace-nudge-bubble__title' }, first.title),
 					fresh.length > 1 ? el('span', { class: 'ace-nudge-bubble__more' }, '+' + (fresh.length - 1) + ' more') : '')),
-			el('button', { type: 'button', class: 'ace-nudge-bubble__close', 'aria-label': 'Dismiss', on: { click: close } }, '\u00d7'));
-		b.addEventListener('mouseenter', () => clearTimeout(timer));
+			el('button', { type: 'button', class: 'ace-nudge-bubble__close', 'aria-label': 'Dismiss', on: { click: () => close() } }, '\u00d7'),
+			bar);
+		b.addEventListener('mouseenter', hold);
 		b.addEventListener('mouseleave', wait);
-		b.addEventListener('focusin', () => clearTimeout(timer));
+		b.addEventListener('focusin', hold);
 		b.addEventListener('focusout', wait);
 		document.addEventListener('keydown', onKey);
-		document.addEventListener('ace-sheet:open', close, { once: true });
-		window.addEventListener('resize', close, { once: true });
+		document.addEventListener('ace-sheet:open', () => close(), { once: true });
+		window.addEventListener('resize', () => close(), { once: true });
 		document.body.append(b);
 		bubbleEl = b;
 		if (!calm && b.animate) {
 			b.animate([{ opacity: 0, transform: 'translateY(-10px) scale(.6)' }, { opacity: 1, transform: 'translateY(2px) scale(1.02)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.8,.3,1)' });
 		}
-		wait();
+		if (!calm && bar.firstChild.animate) {
+			run = bar.firstChild.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: LIFE, easing: 'linear', fill: 'forwards' });
+			run.onfinish = () => close(null, true);
+			// Already under the pointer as it arrives: it starts held.
+			if (b.matches(':hover')) run.pause();
+		} else {
+			b.classList.add('is-untimed');
+			wait();
+		}
 	};
 
 	cfg.api = {

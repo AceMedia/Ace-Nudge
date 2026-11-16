@@ -83,8 +83,8 @@ html.pp-dark-mode .ace-nudge-bell .ace-nudge-bell__count { background: var(--wp-
 
 /* The bubble from the bell: the newest unread notification, overlaying the page under the bell. It
    takes a site's tooltip surface when there is one (--pp-tip-*), else white with dark text. */
-.ace-nudge-bubble { position: fixed; z-index: 100001; box-sizing: border-box; display: flex; align-items: stretch; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--pp-tip-line, #bed1cb); border-radius: 12px; background: var(--pp-tip-bg, #fff); color: var(--pp-tip-fg, #2d2d2d); box-shadow: var(--pp-tip-shadow, 0 8px 24px -8px rgba(0, 0, 0, .35)); transform-origin: calc(100% - var(--ace-nudge-bubble-arrow, 20px) - 7px) 0; }
-.ace-nudge-bubble::before { content: ""; position: absolute; z-index: 1; top: -7px; right: var(--ace-nudge-bubble-arrow, 20px); width: 12px; height: 12px; border-top: 1px solid var(--pp-tip-line, #bed1cb); border-left: 1px solid var(--pp-tip-line, #bed1cb); background: var(--pp-tip-bg, #fff); transform: rotate(45deg); }
+.ace-nudge-bubble { position: fixed; z-index: 100001; box-sizing: border-box; display: flex; align-items: stretch; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--ace-nudge-bubble-line, var(--pp-tip-line, #bed1cb)); border-radius: 12px; background: var(--ace-nudge-bubble-bg, var(--pp-tip-bg, #fff)); color: var(--ace-nudge-bubble-fg, var(--pp-tip-fg, #2d2d2d)); -webkit-backdrop-filter: var(--ace-nudge-bubble-blur, none); backdrop-filter: var(--ace-nudge-bubble-blur, none); box-shadow: var(--pp-tip-shadow, 0 8px 24px -8px rgba(0, 0, 0, .35)); transform-origin: calc(100% - var(--ace-nudge-bubble-arrow, 20px) - 7px) 0; }
+.ace-nudge-bubble::before { content: ""; position: absolute; z-index: 1; top: -7px; right: var(--ace-nudge-bubble-arrow, 20px); width: 12px; height: 12px; border-top: 1px solid var(--ace-nudge-bubble-line, var(--pp-tip-line, #bed1cb)); border-left: 1px solid var(--ace-nudge-bubble-line, var(--pp-tip-line, #bed1cb)); background: var(--ace-nudge-bubble-arrow-bg, var(--ace-nudge-bubble-bg, var(--pp-tip-bg, #fff))); transform: rotate(45deg); clip-path: polygon(0 0, 100% 0, 0 100%); }
 .ace-nudge-bubble__open { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; padding: 10px 4px 10px 10px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 12px 0 0 12px; }
 .ace-nudge-bubble__thumb { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
 .ace-nudge-bubble__text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -102,4 +102,9 @@ html.pp-dark-mode .ace-nudge-bell .ace-nudge-bell__count { background: var(--wp-
 .ace-nudge-bubble__open:hover .ace-nudge-bubble__title { text-decoration: underline; text-underline-offset: 2px; }
 .ace-nudge-bubble__close:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
 html.pp-dark-mode .ace-nudge-bubble__chip[data-kind="result"] { background: #fff; color: #000; }
+/* How long the bubble has left: a bar along its foot that runs down from full (notify.js drives and pauses it). A site colours the bubble with --ace-nudge-bubble-bg, -fg, -line, -blur, -timer and the chip with --ace-nudge-bubble-chip-bg and -chip-fg. */
+.ace-nudge-bubble__timer { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; overflow: hidden; border-radius: 0 0 11px 11px; pointer-events: none; }
+.ace-nudge-bubble__timer > span { display: block; height: 100%; background: var(--ace-nudge-bubble-timer, currentColor); transform-origin: left center; }
+.ace-nudge-bubble.is-untimed .ace-nudge-bubble__timer { display: none; }
+.ace-nudge-bubble__chip:not([data-kind="updated"]):not([data-kind="result"]) { background: var(--ace-nudge-bubble-chip-bg, #004833); color: var(--ace-nudge-bubble-chip-fg, #fff); }
 @media print { .ace-nudge-bubble { display: none; } }
