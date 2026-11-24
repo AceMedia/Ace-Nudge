@@ -2,7 +2,7 @@
 Contributors: shanerounce
 Requires at least: 6.5
 Requires PHP: 8.1
-Stable tag: 0.3.4
+Stable tag: 0.7.1
 License: GPLv2 or later
 
 Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter.

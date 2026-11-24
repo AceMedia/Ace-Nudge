@@ -36,7 +36,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'ACE_NUDGE_VERSION', '0.3.0' );
+define( 'ACE_NUDGE_VERSION', '0.7.1' );
 define( 'ACE_NUDGE_DIR', __DIR__ );
 define( 'ACE_NUDGE_URL', plugin_dir_url( __FILE__ ) );
 

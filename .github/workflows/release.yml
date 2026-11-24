@@ -1,0 +1,15 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bin/build-zip.sh
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip --title "Ace NUDGE ${GITHUB_REF_NAME#v}" --notes-file CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
