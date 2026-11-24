@@ -23,6 +23,7 @@
  * Anything site-specific comes through filters, so regulated sites add their own rules:
  *   ace_nudge_min_age (overrides the setting), ace_nudge_wording, ace_nudge_promo_pattern, ace_nudge_email_footer,
  *   ace_nudge_brand, ace_nudge_bell_selector, ace_nudge_host_selector, ace_nudge_top_categories.
+ *   The full list is in docs/hooks.md.
  *
  * An age question runs in the browser and only the fact that it was passed reaches the server.
  *

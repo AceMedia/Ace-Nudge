@@ -11,8 +11,8 @@ Make NUDGE the single mailing list for the ACE plugins. Other plugins collect ad
 | Plugin | Holds addresses | Consent | Suppression | Unsubscribe |
 |---|---|---|---|---|
 | Ace NUDGE | Yes (`subscribers`) | Logged with wording | Yes | Yes, one click |
-| Adaptive Customer Engagement | `basket_recovery`, `form_submissions`, `chat_conversations`, `calls` | None for marketing | None | Basket emails only |
-| Adaptive Content Enhancer | `ace_form_entries.contact_email` | Per form field only | None | None |
+| A customer engagement plugin | `basket_recovery`, `form_submissions`, `chat_conversations`, `calls` | None for marketing | None | Basket emails only |
+| A forms plugin | `ace_form_entries.contact_email` | Per form field only | None | None |
 
 ## Design
 

@@ -82,7 +82,7 @@ class Ace_Nudge_Dispatch {
 	/**
 	 * Bet slip reminder, for people who switched it on (site:slipremind): once, fifteen minutes before
 	 * the first game or race on the slip, with no potential returns in it, inside quiet hours and the
-	 * daily cap. There is no "still thinking it over?" nudge: a repeated prompt to bet is out (#159).
+	 * daily cap. There is no "still thinking it over?" nudge: a repeated prompt to bet is out.
 	 * Slips whose events have all started, or that have not changed for two days, are forgotten
 	 * whether or not the reminder is on.
 	 */

@@ -207,8 +207,8 @@ class Ace_Nudge_Rest {
 
 	/**
 	 * The bet slip dock keeps a person's picks on their device; with notifications on it sends a
-	 * summary here so they can be reminded: half an hour after the last change if nothing was
-	 * placed, and fifteen minutes before the first game or race on it. Nothing is placed from here.
+	 * summary here so they can be reminded, once, fifteen minutes before the first game or race on
+	 * it (only if they switched the reminder on). Nothing is placed from here.
 	 */
 	public static function slip( WP_REST_Request $r ) {
 		global $wpdb;

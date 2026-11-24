@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-label="The double opt-in email and the daily round-up">
+<rect width="1200" height="520" rx="18" fill="#f6f7f7"/>
+<g font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">
+<g transform="translate(60,40)"><rect width="480" height="440" rx="14" fill="#fff" stroke="#dcdcde"/><rect width="480" height="64" rx="14" fill="#f0f0f1"/><rect y="48" width="480" height="16" fill="#f0f0f1"/>
+<text x="24" y="28" font-size="13" fill="#787c82">From: Your Site</text><text x="24" y="50" font-size="16" font-weight="700" fill="#1d2327">Confirm your newsletter</text>
+<text x="40" y="120" font-size="16" fill="#1d2327">Please confirm you asked for the newsletter</text><text x="40" y="146" font-size="16" fill="#1d2327">and that you are 18 or over.</text>
+<rect x="40" y="190" width="300" height="52" rx="26" fill="#2271b1"/><text x="190" y="223" font-size="17" fill="#fff" text-anchor="middle" font-weight="700">Confirm my subscription</text>
+<text x="40" y="300" font-size="13" fill="#787c82">If this wasn't you, ignore this email and you</text><text x="40" y="320" font-size="13" fill="#787c82">won't hear from us again.</text>
+<text x="240" y="410" font-size="15" fill="#2271b1" text-anchor="middle" font-weight="700">Step 1: double opt-in</text></g>
+<g transform="translate(660,40)"><rect width="480" height="440" rx="14" fill="#fff" stroke="#dcdcde"/><rect width="480" height="64" rx="14" fill="#1d2327"/><rect y="48" width="480" height="16" fill="#1d2327"/>
+<text x="24" y="28" font-size="13" fill="#8fb0d6">From: Your Site</text><text x="24" y="50" font-size="16" font-weight="700" fill="#fff">Your round-up</text>
+<g font-size="14" font-weight="700" fill="#2271b1"><text x="28" y="100">FOOTBALL</text><text x="28" y="236">RACING</text></g>
+<g><rect x="28" y="112" width="70" height="56" rx="8" fill="#c5d9ed"/><text x="112" y="132" font-size="15" font-weight="700" fill="#1d2327">Team news ahead of Saturday</text><text x="112" y="152" font-size="12" fill="#787c82">Two changes expected</text>
+<rect x="28" y="178" width="70" height="40" rx="8" fill="#c5d9ed"/><text x="112" y="200" font-size="15" font-weight="700" fill="#1d2327">Transfer window latest</text>
+<rect x="28" y="248" width="70" height="56" rx="8" fill="#e0cfe8"/><text x="112" y="268" font-size="15" font-weight="700" fill="#1d2327">Weekend racing: best bets</text><text x="112" y="288" font-size="12" fill="#787c82">Going report and runners</text></g>
+<line x1="28" y1="336" x2="452" y2="336" stroke="#e8e8e8"/>
+<text x="28" y="364" font-size="12" fill="#787c82">You asked for this newsletter from Your Site.</text><text x="28" y="384" font-size="12" fill="#2271b1" text-decoration="underline">Unsubscribe</text>
+<text x="240" y="420" font-size="15" fill="#2271b1" text-anchor="middle" font-weight="700">Step 2: the round-up, one-click unsubscribe</text></g></g></svg>

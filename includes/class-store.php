@@ -2,7 +2,7 @@
 /**
  * Tables, consent wording and the consent log.
  *
- * Licence condition 5.1.11 requires evidence of consent, so every grant and withdrawal is
+ * Regulated sites need evidence of consent, so every grant and withdrawal is
  * logged with the exact wording shown. The log holds hashes, never an address or endpoint.
  */
 
