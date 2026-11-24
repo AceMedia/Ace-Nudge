@@ -10,6 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bin/build-zip.sh
-      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip --title "Ace NUDGE ${GITHUB_REF_NAME#v}" --notes-file CHANGELOG.md
+      - name: Notes for this version
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '$0 ~ "^## " v "$" {f=1; next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "No CHANGELOG section for $v"; exit 1; }
+          printf '\nInstall: download ace-nudge-%s.zip below, then Plugins, Add New, Upload Plugin in WordPress.\n' "$v" >> notes.md
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip --title "Ace NUDGE ${GITHUB_REF_NAME#v}" --notes-file notes.md
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,10 +1,17 @@
 # Ace NUDGE
 
+[![Release](https://img.shields.io/badge/release-0.7.1-2271b1)](https://github.com/AceMedia/Ace-Nudge/releases/latest)
+[![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
+[![WordPress](https://img.shields.io/badge/WordPress-6.5%2B-21759b?logo=wordpress&logoColor=white)](https://wordpress.org/)
+[![Licence](https://img.shields.io/badge/licence-GPL--2.0--or--later-green)](LICENSE)
+[![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-f7df1e?logo=javascript&logoColor=black)](assets/notify.js)
+[![WooCommerce](https://img.shields.io/badge/WooCommerce-optional-96588a?logo=woocommerce&logoColor=white)](docs/hooks.md)
+
 Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter for WordPress, with consent evidence and an admin overview.
 
 Visitors follow a story, product, category, game or the whole site, with no account. Consent is logged with the exact wording shown. On WooCommerce sites, customers can also turn on order updates, back-in-stock and price-drop alerts.
 
-Current version: **0.7.1**. Requires WordPress 6.5 and PHP 8.1. Licence GPL-2.0-or-later.
+Current version: **0.7.1**. Requires WordPress 6.5 and PHP 8.1.
 
 ## What it does
 
@@ -53,3 +60,13 @@ Sending is one `wp_mail` call per subscriber inside a cron run, with no queue. T
 ## Download
 
 Each release has an installable zip on the [Releases page](https://github.com/AceMedia/Ace-Nudge/releases). In WordPress choose Plugins, Add New, Upload Plugin, pick `ace-nudge-VERSION.zip`, then activate. To build one yourself run `bin/build-zip.sh`, which writes `dist/ace-nudge-VERSION.zip`. Pushing a tag such as `v0.7.1` builds and publishes the release automatically.
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as described in [SECURITY.md](SECURITY.md), not in public issues.
+
+## Licence
+
+Copyright (C) 2026 Shane Rounce.
+
+Ace NUDGE is free software, released under the [GNU General Public License, version 2 or (at your option) any later version](LICENSE). You may use, study, change and share it under those terms. It bundles no third-party code.
