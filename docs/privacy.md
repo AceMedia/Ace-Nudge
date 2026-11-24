@@ -6,7 +6,7 @@
 - Push endpoint and keys, while a browser is subscribed. Browser subscribers are anonymous: there is no account, name or address.
 - Follows: what each subscription asked to hear about.
 - Reading history, only for a browser that switched on "Updates to what I've read", and only for 30 days. Switching it off deletes the history at once. The admin screens never show it, only that the option is on.
-- A bet slip summary, only on sites with a slip and only for a browser with notifications on. It is forgotten when its events have started, after two days without a change, or when the slip is placed or cleared.
+- A summary of the visitor's selection list, only on sites that have one and only for a browser with notifications on. It is forgotten when its items have started, after two days without a change, or when the list is completed or cleared.
 - A consent log holding hashes, never an address or endpoint.
 - Daily send totals. No per-message log.
 

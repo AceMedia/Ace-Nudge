@@ -8,14 +8,13 @@
 @supports not (background: color-mix(in srgb, red 10%, #fff)) { .ace-nudge-follow:hover { background: var(--ace-nudge-page); } }
 .ace-nudge-bell { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--ace-nudge-primary); cursor: pointer; }
 @media (max-width: 600px) { .ace-nudge-bell { width: 36px; } }
-/* The unread count on the bell: white on the brand green in light mode, black on the
-   brand yellow in dark mode. It is placed from the icon's centre, not the button's edges, so it stays
+/* The unread count on the bell: white on the site's primary colour. A site restyles it, for
+   example in a dark mode, with its own rule. It is placed from the icon's centre, not the button's edges, so it stays
    on the bell whatever size the header gives the button. */
 .ace-nudge-bell { position: relative; }
-.ace-nudge-bell .ace-nudge-bell__count { position: absolute; top: calc(50% - 17px); left: calc(50% + 1px); min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--wp--preset--color--primary, #31953e); color: #ffffff; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--wp--preset--color--background, #ffffff); pointer-events: none; }
+.ace-nudge-bell .ace-nudge-bell__count { position: absolute; top: calc(50% - 17px); left: calc(50% + 1px); min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--wp--preset--color--primary, #2271b1); color: #ffffff; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--wp--preset--color--background, #ffffff); pointer-events: none; }
 .ace-nudge-bell .ace-nudge-bell__count[hidden] { display: none; }
-html.pp-dark-mode .ace-nudge-bell .ace-nudge-bell__count { background: var(--wp--preset--color--secondary, #ffff00); color: #000000; box-shadow: 0 0 0 2px #000000; }
-.ace-nudge-bell:focus-visible { outline: 2px solid var(--wp--preset--color--primary, #31953e); outline-offset: -2px; border-radius: 50%; }
+.ace-nudge-bell:focus-visible { outline: 2px solid var(--wp--preset--color--primary, #2271b1); outline-offset: -2px; border-radius: 50%; }
 
 .ace-nudge-dialog { box-sizing: border-box; width: calc(100% - 32px); max-width: 30rem; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 1.5rem; border: 0; border-top: 6px solid var(--ace-nudge-accent); border-radius: 1rem; background: #fff; color: #111; box-shadow: 0 18px 50px rgba(0, 0, 0, .3); }
 .ace-nudge-dialog::backdrop { background: rgba(0, 40, 28, .55); }
@@ -82,9 +81,9 @@ html.pp-dark-mode .ace-nudge-bell .ace-nudge-bell__count { background: var(--wp-
 }
 
 /* The bubble from the bell: the newest unread notification, overlaying the page under the bell. It
-   takes a site's tooltip surface when there is one (--pp-tip-*), else white with dark text. */
-.ace-nudge-bubble { position: fixed; z-index: 100001; box-sizing: border-box; display: flex; align-items: stretch; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--ace-nudge-bubble-line, var(--pp-tip-line, #bed1cb)); border-radius: 12px; background: var(--ace-nudge-bubble-bg, var(--pp-tip-bg, #fff)); color: var(--ace-nudge-bubble-fg, var(--pp-tip-fg, #2d2d2d)); -webkit-backdrop-filter: var(--ace-nudge-bubble-blur, none); backdrop-filter: var(--ace-nudge-bubble-blur, none); box-shadow: var(--pp-tip-shadow, 0 8px 24px -8px rgba(0, 0, 0, .35)); transform-origin: calc(100% - var(--ace-nudge-bubble-arrow, 20px) - 7px) 0; }
-.ace-nudge-bubble::before { content: ""; position: absolute; z-index: 1; top: -7px; right: var(--ace-nudge-bubble-arrow, 20px); width: 12px; height: 12px; border-top: 1px solid var(--ace-nudge-bubble-line, var(--pp-tip-line, #bed1cb)); border-left: 1px solid var(--ace-nudge-bubble-line, var(--pp-tip-line, #bed1cb)); background: var(--ace-nudge-bubble-arrow-bg, var(--ace-nudge-bubble-bg, var(--pp-tip-bg, #fff))); transform: rotate(45deg); clip-path: polygon(0 0, 100% 0, 0 100%); }
+   takes a site's tooltip surface when there is one (the --ace-nudge-bubble-* custom properties), else white with dark text. */
+.ace-nudge-bubble { position: fixed; z-index: 100001; box-sizing: border-box; display: flex; align-items: stretch; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--ace-nudge-bubble-line, #bed1cb); border-radius: 12px; background: var(--ace-nudge-bubble-bg, #fff); color: var(--ace-nudge-bubble-fg, #2d2d2d); -webkit-backdrop-filter: var(--ace-nudge-bubble-blur, none); backdrop-filter: var(--ace-nudge-bubble-blur, none); box-shadow: var(--ace-nudge-bubble-shadow, 0 8px 24px -8px rgba(0, 0, 0, .35)); transform-origin: calc(100% - var(--ace-nudge-bubble-arrow, 20px) - 7px) 0; }
+.ace-nudge-bubble::before { content: ""; position: absolute; z-index: 1; top: -7px; right: var(--ace-nudge-bubble-arrow, 20px); width: 12px; height: 12px; border-top: 1px solid var(--ace-nudge-bubble-line, #bed1cb); border-left: 1px solid var(--ace-nudge-bubble-line, #bed1cb); background: var(--ace-nudge-bubble-arrow-bg, var(--ace-nudge-bubble-bg, #fff)); transform: rotate(45deg); clip-path: polygon(0 0, 100% 0, 0 100%); }
 .ace-nudge-bubble__open { flex: 1 1 auto; display: flex; align-items: flex-start; gap: 12px; min-width: 0; margin: 0; padding: 12px 4px 15px 12px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 12px 0 0 12px; }
 .ace-nudge-bubble__thumb { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
 .ace-nudge-bubble__icon { flex: 0 0 44px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; background: color-mix(in srgb, currentColor 14%, transparent); }

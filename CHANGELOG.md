@@ -2,6 +2,14 @@
 
 All notable changes to Ace NUDGE. Each released version has its own section, headed with the bare version number, because the release workflow takes its notes from the section with that exact heading. Dates are the dates of the commits that set each version.
 
+## 0.7.3
+
+Released 2026-11-24.
+
+- Changed: nothing site-specific is left in the plugin. The notice appended to recommendation pushes, the intro the bubble waits for, and the title of selection list notifications now come from the filters `ace_nudge_tip_notice`, `ace_nudge_hold_selector` and `ace_nudge_slip_title`, all empty or neutral by default.
+- Changed: the notification bubble is styled through the custom properties `--ace-nudge-bubble-bg`, `-fg`, `-line` and `-shadow`. The bell count uses the site's primary colour, and a site restyles it with its own CSS rule.
+- Documentation and illustrations: neutral wording throughout, a full wiki, and a new Ace and NUDGE lockup on the banner and overview.
+
 ## 0.7.2
 
 Released 2026-11-24.
@@ -48,7 +56,7 @@ Released 2026-11-09, with fixes to 2026-11-10.
 
 Released 2026-11-09.
 
-- The bet slip reminder is opt-in (`site:slipremind`). It is sent once before the first event, without potential returns, and respects quiet hours and the daily cap. The idle reminder was removed.
+- The selection list reminder is opt-in (`site:slipremind`). It is sent once before the first item starts, without totals, and respects quiet hours and the daily cap. The idle reminder was removed.
 
 ## 0.4.9
 
@@ -72,7 +80,7 @@ Released 2026-11-09.
 
 Released 2026-11-09.
 
-- Slip and site notifications sound different, the sound plays straight away where the browser already allows it, and the feed is checked again every four minutes while the page is in view.
+- Selection list and site notifications sound different, the sound plays straight away where the browser already allows it, and the feed is checked again every four minutes while the page is in view.
 
 ## 0.4.5
 
@@ -96,8 +104,8 @@ Released 2026-11-08.
 
 Released 2026-11-08.
 
-- A site's bet slip and recommended tips join the notification list. Slip picks report price moves, markets closing, events starting, results and their article being updated, from the site's cached state. Tips come from recent articles in subjects the reader follows or reads, learnt on the device and switchable off.
-- Opt-in alerts for slip price changes and new tips.
+- A site's selection list and recommendations join the notification list. Listed items report price moves, items closing, items starting, results and their article being updated, from the site's cached state. Recommendations come from recent articles in subjects the reader follows or reads, learnt on the device and switchable off.
+- Opt-in alerts for selection list price changes and new recommendations.
 
 ## 0.4.1
 
@@ -139,14 +147,14 @@ Released 2026-11-05, with additions to 2026-11-07.
 
 - Follow ids are stored as text, and a change to a product variation is credited to its parent.
 - A follow API for other scripts, and follows that lapse after a set number of days.
-- Bet slip reminders.
-- Follow buttons: one row on versus pages, and a target's own colours and icon.
+- Selection list reminders.
+- Follow buttons: one row on pages that set two sides against each other, and a target's own colours and icon.
 
 ## 0.3.1
 
 Released 2026-11-05.
 
-- Follow buttons can sit on a side, and following a team from a game's page also covers that game.
+- Per-term follow buttons can sit on a side, and following a term from a scheduled event's page also covers that event.
 
 ## 0.3.0
 
@@ -156,11 +164,11 @@ Released 2026-11-05.
 - WooCommerce: order updates on a device and email choices, suggested at sign-up, checkout and in the account area.
 - Extra taxonomies can be followed per term and managed in the panel.
 - A newsletter switch and site defaults.
-- The generic confirmation no longer uses game wording.
+- The generic confirmation no longer uses wording meant for scheduled events.
 
 ## 0.2.0
 
 Released 2026-11-05. The first version in this repository; the earlier prototype was not published here.
 
-- Opt-in browser notifications and an email newsletter: follow a story, product, category or game, or the whole site, with a consent log and an admin overview.
+- Opt-in browser notifications and an email newsletter: follow a story, product, category or scheduled event, or the whole site, with a consent log and an admin overview.
 - The settings screen loads the shared save bar when present, and same-named categories are merged.

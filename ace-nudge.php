@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Ace NUDGE
  * Description: Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter: follow a story, product, category or game, or the whole site, with consent evidence and an admin overview.
- * Version: 0.7.2
+ * Version: 0.7.3
  * Author: Shane Rounce
  * Author URI: https://acemedia.ninja
  * Plugin URI: https://github.com/AceMedia/Ace-Nudge
@@ -40,7 +40,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'ACE_NUDGE_VERSION', '0.7.2' );
+define( 'ACE_NUDGE_VERSION', '0.7.3' );
 define( 'ACE_NUDGE_DIR', __DIR__ );
 define( 'ACE_NUDGE_URL', plugin_dir_url( __FILE__ ) );
 

@@ -518,7 +518,7 @@
 		followsChanged();
 	};
 
-	// The reader's bet slip, where the site has one: its picks are read from this browser, their state
+	// The reader's selection list (slip), where the site has one: its picks are read from this browser, their state
 	// comes from the site's cached endpoint (the same answer for anyone asking about the same picks),
 	// and nothing about the slip is stored anywhere else. The price first seen for each pick is kept
 	// here, so a move is measured from what the reader saw.
@@ -706,7 +706,7 @@
 	// (nothing moves), leaves on its own after six seconds unless pointed at or focused, and never
 	// shows inside the app pages a site names (the bet calculator, the map).
 	// An arcade sound as a notification comes in, made in the browser (no sound file to load). Site
-	// notifications get a "ding-ding", two bright bell notes like a fruit machine paying out; bet slip
+	// notifications get a "ding-ding", two bright bell notes like a arcade game paying out; selection list
 	// ones get a quick three-note coin run that ends on a ring, so the two are told apart by ear. Each
 	// note is a square wave softened by a triangle an octave up, dying away quickly. Browsers only let
 	// a page make sound once the reader has interacted with it, so if it is not allowed yet it waits
@@ -771,9 +771,9 @@
 	try { const nav = performance.getEntriesByType('navigation')[0]; reloaded = !!nav && nav.type === 'reload'; } catch (e) {}
 	// While the page plays its first-load intro, the bubble (and its sound) waits, then arrives a moment
 	// after everything else has come in. cfg.holdWhile names what to wait for on the <html> element.
-	const HOLD = cfg.holdWhile || '.pp-intro, .pp-intro-c';
+	const HOLD = cfg.holdWhile || '';
 	let holding = null;
-	const held = () => { try { return document.documentElement.matches(HOLD); } catch (e) { return false; } };
+	const held = () => { try { return !!HOLD && document.documentElement.matches(HOLD); } catch (e) { return false; } };
 	const afterIntro = (fn) => {
 		if (holding) return;
 		holding = new MutationObserver(() => {

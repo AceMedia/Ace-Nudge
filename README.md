@@ -1,6 +1,6 @@
 # Ace *NUDGE*
 
-[![Release](https://img.shields.io/badge/release-0.7.2-2271b1)](https://github.com/AceMedia/Ace-Nudge/releases/latest)
+[![Release](https://img.shields.io/badge/release-0.7.3-2271b1)](https://github.com/AceMedia/Ace-Nudge/releases/latest)
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
 [![WordPress](https://img.shields.io/badge/WordPress-6.5%2B-21759b?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![Licence](https://img.shields.io/badge/licence-GPL--2.0--or--later-green)](LICENSE)
@@ -11,9 +11,9 @@
 
 Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter for WordPress, with consent evidence and an admin overview.
 
-Visitors follow a story, product, category, game or the whole site, with no account. Consent is logged with the exact wording shown. On WooCommerce sites, customers can also turn on order updates, back in stock and price drop alerts.
+Visitors follow a story, product, category, scheduled live event or the whole site, with no account. Consent is logged with the exact wording shown. On WooCommerce sites, customers can also turn on order updates, back in stock and price drop alerts.
 
-Current version: **0.7.2**. Requires WordPress 6.5 and PHP 8.1 with the OpenSSL extension.
+Current version: **0.7.3**. Requires WordPress 6.5 and PHP 8.1 with the OpenSSL extension.
 
 ## What it does
 
@@ -69,7 +69,7 @@ The tables are created on the first request after activation. Site rules such as
 - [Privacy and consent](docs/privacy.md): what is stored, erased and logged
 - [Operations](docs/operations.md): WP-CLI, cron, limits, going live, deployment
 - [Troubleshooting](docs/troubleshooting.md)
-- [Developer guide](docs/developer-guide.md): extending through filters, with examples, plus the optional fixtures and bet slip integrations
+- [Developer guide](docs/developer-guide.md): extending through filters, with examples
 - [Shared mailing list design](docs/shared-list-integration.md): a proposal for using *NUDGE* as the list for other plugins
 - [Changelog](CHANGELOG.md)
 

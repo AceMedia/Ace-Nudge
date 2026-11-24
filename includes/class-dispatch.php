@@ -13,6 +13,11 @@ class Ace_Nudge_Dispatch {
 	const LIVE_HOOK  = 'ace_nudge_minute';
 	const MAIL_HOOK  = 'ace_nudge_digest';
 
+	/** The title of a selection list notification. A site names its own list through ace_nudge_slip_title. */
+	public static function slip_title() {
+		return (string) apply_filters( 'ace_nudge_slip_title', 'Your selections' );
+	}
+
 	public static function boot() {
 		add_filter( 'cron_schedules', function ( $s ) {
 			$s['ace_nudge_minute'] = array( 'interval' => MINUTE_IN_SECONDS, 'display' => 'Every minute (Ace Notifications)' );
@@ -80,9 +85,9 @@ class Ace_Nudge_Dispatch {
 	}
 
 	/**
-	 * Bet slip reminder, for people who switched it on (site:slipremind): once, fifteen minutes before
-	 * the first game or race on the slip, with no potential returns in it, inside quiet hours and the
-	 * daily cap. There is no "still thinking it over?" nudge: a repeated prompt to bet is out.
+	 * Selection list reminder, for people who switched it on (site:slipremind): once, fifteen minutes before
+	 * the first scheduled event on the slip, with no price projections in it, inside quiet hours and the
+	 * daily cap. There is no "still thinking it over?" nudge: a repeated prompt is out.
 	 * Slips whose events have all started, or that have not changed for two days, are forgotten
 	 * whether or not the reminder is on.
 	 */
@@ -122,7 +127,7 @@ class Ace_Nudge_Dispatch {
 				}
 			}
 			$when = $pick && ! empty( $pick['event'] ) ? $pick['event'] . ' starts in ' . max( 1, (int) ceil( ( $first - $now ) / MINUTE_IN_SECONDS ) ) . ' minutes' : 'The first event on your slip starts soon';
-			$sent = self::deliver( $row, array( 'title' => 'Your bet slip', 'body' => $when . '. Your slip has ' . $what . '.', 'url' => $meta['url'], 'tag' => 'slip' ) );
+			$sent = self::deliver( $row, array( 'title' => self::slip_title(), 'body' => $when . '. Your slip has ' . $what . '.', 'url' => $meta['url'], 'tag' => 'slip' ) );
 			$meta['kick_sent'] = $now;
 			$wpdb->update( $follows, array( 'meta' => wp_json_encode( $meta ) ), array( 'id' => $row->follow_id ), array( '%s' ), array( '%d' ) );
 			if ( $sent ) {
@@ -178,7 +183,7 @@ class Ace_Nudge_Dispatch {
 			$meta['told'] = $told;
 			$wpdb->update( $follows, array( 'meta' => wp_json_encode( $meta ) ), array( 'id' => $row->follow_id ), array( '%s' ), array( '%d' ) );
 			$body = $lines[0] . ( count( $lines ) > 1 ? ' (+' . ( count( $lines ) - 1 ) . ' more)' : '' );
-			if ( self::deliver( $row, array( 'title' => 'Your bet slip', 'body' => $body, 'url' => $meta['url'] ?? home_url( '/' ), 'tag' => 'slip-prices' ) ) ) {
+			if ( self::deliver( $row, array( 'title' => self::slip_title(), 'body' => $body, 'url' => $meta['url'] ?? home_url( '/' ), 'tag' => 'slip-prices' ) ) ) {
 				$sent = $row->sent_day === $today ? (int) $row->sent_count : 0;
 				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $sent + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $row->id ) );
 			}
@@ -257,7 +262,7 @@ class Ace_Nudge_Dispatch {
 			}
 			$tip  = $pick['tip'];
 			$body = trim( $tip['runner'] . ( '' !== (string) $tip['price'] ? ' at ' . $tip['price'] : '' ) . ' in ' . html_entity_decode( get_the_title( $pick['post'] ), ENT_QUOTES ) );
-			$msg  = array( 'title' => 'New tip', 'body' => $body . ' 18+. Please gamble responsibly.', 'url' => self::opened( get_permalink( $pick['post'] ), $pick['post']->ID ), 'tag' => 'tip-' . $pick['post']->ID );
+			$msg  = array( 'title' => 'New tip', 'body' => $body . (string) apply_filters( 'ace_nudge_tip_notice', '' ), 'url' => self::opened( get_permalink( $pick['post'] ), $pick['post']->ID ), 'tag' => 'tip-' . $pick['post']->ID );
 			if ( self::deliver( $sub, $msg ) ) {
 				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $sent + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $sub->id ) );
 			}

@@ -25,21 +25,27 @@ Anything site-specific comes through filters, so the plugin itself stays generic
 | `ace_nudge_targets` | `array $targets` | The follow targets the current page offers |
 | `ace_nudge_site_follows` | `array $follows` | Extra opt-in alerts from other plugins, as `id => label`. Sent with `Ace_Nudge_Dispatch::broadcast()` |
 
-### Updates, feed and tips
+### Updates, feed and recommendations
+
+Recommendations (`tips` in the identifiers) are attached to posts, each with a label and a price.
 
 | Filter | Arguments | Purpose |
 |---|---|---|
 | `ace_nudge_is_real_update` | `bool $real`, `WP_Post $after`, `WP_Post $before` | Whether an edit is worth telling followers. Default: a new title or 200 characters of text added or removed |
 | `ace_nudge_update_reason` | `string $reason`, `WP_Post $after`, `WP_Post $before` | Names a logged update in the feed. Default `updated`; the script also labels `tips`, `prices` and `result` |
 | `ace_nudge_feed_items` | `array $items`, `string $since` | Items in the feed, keyed by post id. Add `result`, `tips` or whole items |
-| `ace_nudge_post_tips` | `array $tips`, `int $post_id` | Tips in a post, each with `runner` and `price`. Without a callback no tip alerts are sent |
+| `ace_nudge_post_tips` | `array $tips`, `int $post_id` | The recommendations attached to a post, each with `runner` (its label) and `price`. Without a callback no recommendation alerts are sent |
+| `ace_nudge_tip_notice` | `string $notice` | Text appended to a recommendation push body, for example a site's required notice. Default empty |
 
-### Bet slip
+### Selection list
+
+A `slip` is a list of selections the visitor builds on the site (a saved list, basket or watch list) whose items have a current state and a price that can change. All of it is off unless the site supplies these filters.
 
 | Filter | Arguments | Purpose |
 |---|---|---|
-| `ace_nudge_slip_config` | `array $config` | `storage` (the `localStorage` key holding the slip) and `state` (a public endpoint giving each pick's current state) |
-| `ace_nudge_slip_state` | `array $state`, `array $pairs` | The current state of the picks in `$pairs` (`"market:sel" => [ market, sel ]`), read from the site's own cache. Without a callback no price alerts are sent |
+| `ace_nudge_slip_config` | `array $config` | `storage` (the `localStorage` key holding the selection list) and `state` (a public endpoint giving each item's current state) |
+| `ace_nudge_slip_title` | `string $title` | Title of selection list notifications. Default `Your selections` |
+| `ace_nudge_slip_state` | `array $state`, `array $pairs` | The current state of the items in `$pairs` (`"market:sel" => [ market, sel ]`), read from the site's own cache. Without a callback no price alerts are sent |
 
 ### Placement
 
@@ -49,6 +55,7 @@ Anything site-specific comes through filters, so the plugin itself stays generic
 | `ace_nudge_host_selector` | `string $selector` | The automatic follow bar is inserted after this element. Default: the page title |
 | `ace_nudge_footer_selector` | `string $selector` | "Newsletter" and "Browser alerts" links are inserted after this element |
 | `ace_nudge_bubble_quiet_selector` | `string $selector` | Pages matching this selector never show the notification bubble |
+| `ace_nudge_hold_selector` | `string $selector` | A CSS selector matched against the `<html>` element. The notification bubble and its sound wait while it matches (12 seconds at most), for example while a page intro plays. Default empty |
 | `ace_nudge_onboarding` | `array $steps` | Steps in the first-visit tour, each `{ id, label, title, text, target, icon }` |
 | `ace_nudge_manifest_url` | `string $url` | Web app manifest, printed as `<link rel="manifest">`. Needed for notifications on iPhone and iPad |
 
@@ -74,7 +81,7 @@ Anything site-specific comes through filters, so the plugin itself stays generic
 | `ACE_NUDGE_MODE` | `off` (default), `test` or `on` |
 | `ACE_NUDGE_TEST_EMAILS` | Array of addresses that may receive the newsletter and confirmation outside `on` mode |
 | `ACE_NUDGE_TEST_PUSH` | Array of subscriber ids that may receive push in `test` mode |
-| `ACE_NUDGE_SHOW_ALL` | In `test` mode, shows the front end to everyone, and keeps past games followable |
+| `ACE_NUDGE_SHOW_ALL` | In `test` mode, shows the front end to everyone, and keeps past live events followable |
 | `ACE_NUDGE_VERSION`, `ACE_NUDGE_DIR`, `ACE_NUDGE_URL` | Defined by the plugin |
 
 ## Browser API: `window.aceNudge.api`
@@ -100,8 +107,8 @@ Anything site-specific comes through filters, so the plugin itself stays generic
 | `unread()` | The unread count |
 | `markRead(id)`, `markAllRead()`, `dismiss(id)` | Change the list. Kept in this browser only |
 | `sound()`, `setSound(on)` | The notification sound. Switching it on plays it once |
-| `recommending()`, `setRecommending(on)` | Whether tips are recommended from what this browser reads. Switching it off forgets what was learnt |
-| `hasSlip()` | Whether the site configured a bet slip |
+| `recommending()`, `setRecommending(on)` | Whether recommendations are drawn from what this browser reads. Switching it off forgets what was learnt |
+| `hasSlip()` | Whether the site configured a selection list |
 
 ### For a settings panel
 

@@ -180,10 +180,11 @@ class Ace_Nudge_Front {
 			// What the post on this page is about, so the browser can learn which sports a reader reads
 			// (kept on the device, and only while they allow it in Settings).
 			'post_terms' => is_singular( Ace_Nudge_Settings::post_types() ) ? array_map( 'intval', (array) wp_get_object_terms( get_the_ID(), Ace_Nudge_Settings::taxonomies(), array( 'fields' => 'ids' ) ) ) : array(),
-			// A site's bet slip, when it has one: where the browser keeps it ('storage') and the public,
+			// A site's selection list (its slip), when it has one: where the browser keeps it ('storage') and the public,
 			// cached endpoint that says how each pick stands now ('state'). Empty without one.
 			'slip'    => (array) apply_filters( 'ace_nudge_slip_config', array() ),
 			// Pages that are apps in their own right, where the notification bubble would be in the way.
+			'holdWhile' => (string) apply_filters( 'ace_nudge_hold_selector', '' ),
 			'quietOn' => (string) apply_filters( 'ace_nudge_bubble_quiet_selector', '' ),
 			// What a reader who follows nothing yet is shown round, one bubble after another: alerts
 			// first, then any step a site adds (id, label, title, text, target selector, icon).

@@ -43,14 +43,14 @@ Every push is a small JSON message: `title`, `body`, `url`, `tag`. The service w
 |---|---|---|
 | Grouped alert | Hourly: new posts in what a browser follows, and real updates to followed or read posts. One message per person per run | Apply |
 | Product alert | Hourly: a followed product is back in stock or drops in price | Apply |
-| Tip alert | Hourly, for `site:tips`, on sites that supply tips | Apply |
+| Recommendation alert | Hourly, for `site:tips`, on sites that supply recommendations | Apply |
 | Extra site alert | When another plugin calls `Ace_Nudge_Dispatch::broadcast()` | Apply |
-| Bet slip reminder | Once, 15 minutes before the first event on the slip, for `site:slipremind` | Apply |
-| Bet slip price alert | Every 5 minutes, for `site:slipprices`, on sites that supply prices | Apply |
-| Game alert | Each minute: reminders at 60, 30 and 5 minutes, kick-off, score changes, full time | Skipped |
+| Selection list reminder | Once, 15 minutes before the first item on the list starts, for `site:slipremind` | Apply |
+| Selection list price alert | Every 5 minutes, for `site:slipprices`, on sites that supply prices | Apply |
+| Live event alert | Each minute, for a followed `fixture`: reminders at 60, 30 and 5 minutes, the start, score changes, the end | Skipped |
 | Order update | When a WooCommerce order changes status | Skipped |
 
-Game alerts and order updates are sent with high urgency and a 10 minute lifetime at the push service. Everything else is normal urgency with a 6 hour lifetime.
+Live event alerts and order updates are sent with high urgency and a 10 minute lifetime at the push service. Everything else is normal urgency with a 6 hour lifetime.
 
 A push service answering 404 or 410 means the subscription has gone, and the subscriber is withdrawn with an `expired` log entry.
 

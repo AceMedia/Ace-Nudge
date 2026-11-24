@@ -28,7 +28,7 @@ The commands are available in every mode, including `off`.
 * * * * * cd /path/to/site && wp cron event run --due-now --quiet
 ```
 
-Without that, game alerts and slip reminders arrive late on quiet sites. The hourly and daily jobs tolerate ordinary WP-Cron.
+Without that, live event alerts and selection list reminders arrive late on quiet sites. The hourly and daily jobs tolerate ordinary WP-Cron.
 
 ## Limits
 
@@ -43,7 +43,7 @@ Without that, game alerts and slip reminders arrive late on quiet sites. The hou
 | Feed | 5 days, up to 60 new and 80 changed posts |
 | Sign-up rate limit | 20 calls an hour per visitor address |
 
-Game alerts and WooCommerce order updates are service messages: they skip the daily cap and quiet hours.
+Live event alerts and WooCommerce order updates are service messages: they skip the daily cap and quiet hours.
 
 ## Deployment
 

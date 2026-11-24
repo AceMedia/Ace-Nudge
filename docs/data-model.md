@@ -41,12 +41,12 @@ Keys: primary `id`, unique `one_follow (subscriber_id, type, object_id)`, index 
 | `ptype` | Post type name | Everything new in a post type |
 | `site` | `all`, `reads`, `slipprices`, `slipremind`, `tips`, or an id from `ace_nudge_site_follows` | Whole-site and opt-in switches |
 | `read` | Post id | A post this browser opened, kept only while `site:reads` is on, for 30 days |
-| `fixture` | Fixture id | A game. `meta` holds its label, post, url, kick-off and hubs. Removed at full time |
+| `fixture` | Fixture id | A scheduled live event the visitor can follow, with a start time, states and a score. `meta` holds its label, post, url, start time and the groups it belongs to. Removed when the event ends |
 | `digest` | `daily` or `weekly` | Newsletter frequency |
 | `order` | Order id | Push updates for one WooCommerce order. Removed when the order is completed, refunded or cancelled |
 | `customer` | User id | Push updates for all of a signed-in customer's orders |
 | `wc` | `product_updates` | Back in stock and price drop emails for products bought |
-| `slip` | `slip` | A summary of the browser's bet slip, in `meta`. One per subscriber |
+| `slip` | `slip` | A summary, in `meta`, of the visitor's selection list: a list of selections the visitor builds on the site (a saved list, basket or watch list) whose items have a current state and a price that can change. One per subscriber |
 
 A follow can lapse after a set time through `meta.until` (a Unix time), cleared hourly by `Ace_Nudge_Dispatch::purge_lapsed()`. A subscriber may hold at most 30 follows, not counting `read` and `slip`.
 
@@ -91,7 +91,7 @@ A suppressed address is never signed up. `wp ace-nudge suppress` withdraws a mat
 | `ace_nudge_sent` | Option | Daily send totals per channel, 30 days |
 | `ace_nudge_updated` | Option | Queue of updated posts and products for the next hourly batch |
 | `ace_nudge_batch_since`, `ace_nudge_tips_since` | Options | When the hourly jobs last ran |
-| `ace_nudge_fixture_state` | Option | Last seen state of each followed game |
+| `ace_nudge_fixture_state` | Option | Last seen state of each followed live event |
 | `ace_nudge_update_log` | Option | Real updates from the last 5 days, for the feed (300 at most) |
 | `ace_nudge_feed_v1` | Transient | The built feed, for one minute |
 | `ace_nudge_rl_*` | Transients | Rate limit counters, one hour |

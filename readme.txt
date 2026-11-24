@@ -4,14 +4,14 @@ Tags: notifications, web push, newsletter, follow, woocommerce
 Requires at least: 6.5
 Tested up to: 6.8
 Requires PHP: 8.1
-Stable tag: 0.7.2
+Stable tag: 0.7.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter, with consent evidence.
 
 == Description ==
-Visitors follow a story, product, category or game, or the whole site, without an account. Consent is logged with the exact wording shown.
+Visitors follow a story, product, category or scheduled live event, or the whole site, without an account. Consent is logged with the exact wording shown.
 
 * Browser push sent by the plugin itself (VAPID), within a daily cap and quiet hours. No third-party service.
 * A daily or weekly email newsletter by category, with double opt-in and one-click unsubscribe.
@@ -32,7 +32,7 @@ Site rules (age check, wording, branding, what can be followed) come through fil
 3. Visit the site with ?ace_nudge_preview=1 to try it. List your address in ACE_NUDGE_TEST_EMAILS and your subscriber id in ACE_NUDGE_TEST_PUSH to receive the newsletter and push in test mode.
 4. Review the settings under Ace NUDGE in the admin menu, then set ACE_NUDGE_MODE to on.
 
-Web Push needs HTTPS, the PHP OpenSSL extension and a site served from the root of its domain. Game alerts need WP-Cron to run every minute.
+Web Push needs HTTPS, the PHP OpenSSL extension and a site served from the root of its domain. Live event alerts need WP-Cron to run every minute.
 
 == Frequently Asked Questions ==
 
@@ -61,6 +61,9 @@ When the site has a settings panel (window.aceSettings with its Alerts tab), the
 Each change also fires ace-nudge:change on document with { status, follows }. In test mode without a preview, or after a failed age check, api.available is false and status().reason says why.
 
 == Changelog ==
+
+= 0.7.3 =
+Nothing site-specific is left in the plugin: three new filters and bubble custom properties replace it. Documentation, wiki and illustrations updated.
 
 = 0.7.2 =
 Test mode now also limits product update emails to the test addresses. The confirmation link only confirms a pending email request.

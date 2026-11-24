@@ -18,8 +18,8 @@ Bodies are JSON. Errors are standard `WP_Error` responses with a `message`.
 | `/withdraw` | POST | Delete the subscription and its follows |
 | `/read` | POST | Record that a post was opened, for readers who asked for updates to what they read |
 | `/orders` | POST | Tie this browser to a WooCommerce order or customer |
-| `/slip` | POST | Store a summary of the browser's bet slip |
-| `/slip_done` | POST | Forget the slip |
+| `/slip` | POST | Store a summary of the visitor's selection list |
+| `/slip_done` | POST | Forget the selection list |
 | `/feed` | GET | Public, cached feed of the last 5 days' new posts and real updates |
 
 ## POST /subscribe
@@ -54,7 +54,7 @@ Returns `{ "pending": true }` whether the address is new, already active, suppre
 | `token` | Required |
 | `type` | `category`, `ptype`, `site`, `post` or `fixture` |
 | `id` | Term id for `category`, post type name for `ptype`, switch id for `site` |
-| `post_id` | For `post` and `fixture`. With `category`, also follows the game that post covers, if any |
+| `post_id` | For `post` and `fixture`. With `category`, also follows the live event that post covers, if any |
 | `days` | Optional. The follow lapses after this many days, 30 at most |
 
 The server resolves the target: the term must be in a followable taxonomy, the post type enabled, the post published, the site switch known. A subscriber may hold 30 follows. Returns the same as `/state`.
@@ -77,7 +77,7 @@ The server resolves the target: the term must be in a followable taxonomy, the p
 }
 ```
 
-`follows` lists every follow except `read` and `slip`. `items` names the ones the manage panel shows as rows: games, posts, post types, orders, the customer follow, and terms outside the standard category taxonomies. An unknown token returns `{ "subscribed": false, "follows": [] }`.
+`follows` lists every follow except `read` and `slip`. `items` names the ones the manage panel shows as rows: live events, posts, post types, orders, the customer follow, and terms outside the standard category taxonomies. An unknown token returns `{ "subscribed": false, "follows": [] }`.
 
 ## POST /withdraw
 
@@ -93,16 +93,16 @@ The server resolves the target: the term must be in a followable taxonomy, the p
 
 ## POST /slip and /slip_done
 
-For sites with a bet slip. The site's own slip script calls these; see [the developer guide](developer-guide.md).
+For sites with a selection list: a list of selections the visitor builds on the site (a saved list, basket or watch list) whose items have a current state and a price that can change. The site's own script calls these; the filters are in [Hooks and the browser API](hooks.md).
 
 | Parameter | Notes |
 |---|---|
 | `token` | A push subscription |
-| `count` | Number of picks. Below 1 forgets the slip |
-| `type` | Bet type label, such as a double |
-| `returns` | Stored, never sent in a notification |
+| `count` | Number of items. Below 1 forgets the list |
+| `type` | A label for the kind of list |
+| `returns` | An optional figure for the list as a whole. Stored, never sent in a notification |
 | `url` | Where a reminder should lead |
-| `picks` | Up to 20 of `{ runner, event, start, market, sel, dec }`. `start` is a Unix time, `market` and `sel` identify the price for price alerts, `dec` is the decimal price on the slip |
+| `picks` | Up to 20 of `{ runner, event, start, market, sel, dec }`. `runner` is the item's label, `event` names what it belongs to, `start` is a Unix time, `market` and `sel` together identify the item's price for price alerts, `dec` is the price on the list as a decimal number |
 
 `/slip` returns `{ "ok": true, "slip": true }`. `/slip_done` takes `token` and returns `{ "ok": true }`.
 

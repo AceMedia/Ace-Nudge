@@ -42,8 +42,8 @@ Front end:
 
 | Hook | Schedule | Work |
 |---|---|---|
-| `ace_nudge_minute` | Every minute (custom schedule `ace_nudge_minute`) | Game changes and kick-off reminders, bet slip reminders, and every fifth minute bet slip price checks |
-| `ace_nudge_hourly` | Hourly | Tip alerts, then the grouped push batch for new posts and updates. Also clears reading history older than 30 days and lapsed follows, and fires `ace_nudge_updates_ready` |
+| `ace_nudge_minute` | Every minute (custom schedule `ace_nudge_minute`) | Live event changes and start reminders, selection list reminders, and every fifth minute selection list price checks |
+| `ace_nudge_hourly` | Hourly | Recommendation alerts, then the grouped push batch for new posts and updates. Also clears reading history older than 30 days and lapsed follows, and fires `ace_nudge_updates_ready` |
 | `ace_nudge_digest` | Daily, first run at 08:00 Europe/London | Newsletter, and removal of unconfirmed requests older than 7 days |
 
 Events are scheduled on `init` when missing, in `test` and `on` modes only. The minute job needs a real system cron calling `wp-cron.php` every minute; see [Operations](operations.md).
@@ -65,6 +65,6 @@ Events are scheduled on `init` when missing, in `test` and `on` modes only. The 
 
 ## Pages are cached
 
-The page carries only what is true for everyone (which game and categories it is about). The script decides everything personal, so full-page caches stay valid. For the same reason the public routes cannot use a nonce: sign-up is rate limited, and everything after subscribing needs the subscription's own token.
+The page carries only what is true for everyone (which live event and categories it is about). The script decides everything personal, so full-page caches stay valid. For the same reason the public routes cannot use a nonce: sign-up is rate limited, and everything after subscribing needs the subscription's own token.
 
 The notification list works the same way. `GET /feed` gives one public answer for everyone. The browser keeps what it has seen and read in `localStorage` and works out its own unread list, so nothing about a reader's history is sent to the server unless they switch on "Updates to what I've read".

@@ -10,14 +10,14 @@ if ( function_exists( 'ace_nudge_mode' ) && 'off' !== ace_nudge_mode() ) {
 }
 ```
 
-## Rules for a regulated site
+## Site rules
 
 ```php
 // A minimum age, which the settings screen cannot lower.
-add_filter( 'ace_nudge_min_age', fn() => 18 );
+add_filter( 'ace_nudge_min_age', fn() => 16 );
 
 // Never notify about promotional posts.
-add_filter( 'ace_nudge_promo_pattern', fn() => '/\b(free bet|bonus|promo code)\b/i' );
+add_filter( 'ace_nudge_promo_pattern', fn() => '/\b(sponsored|advertorial|promo code)\b/i' );
 
 // The wording shown beside each switch, which is also what the consent log stores.
 add_filter( 'ace_nudge_wording', function ( $words ) {
@@ -34,10 +34,10 @@ Make a custom taxonomy followable, with a button for every term on a post:
 
 ```php
 add_filter( 'ace_nudge_taxonomies', function ( $taxonomies ) {
-	$taxonomies[] = 'team';
+	$taxonomies[] = 'topic';
 	return $taxonomies;
 } );
-add_filter( 'ace_nudge_follow_every_term', fn( $taxonomies ) => array_merge( $taxonomies, array( 'team' ) ) );
+add_filter( 'ace_nudge_follow_every_term', fn( $taxonomies ) => array_merge( $taxonomies, array( 'topic' ) ) );
 ```
 
 Terms in extra taxonomies are followed as type `category` with the term id, and are listed by name in the manage panel.
@@ -51,14 +51,14 @@ Terms in extra taxonomies are followed as type `category` with the term id, and 
 | `colour` | Border and label colour. Pale colours are darkened for the label so it stays readable on white |
 | `contrast` | Text colour on the filled, following state |
 | `icon` | Image URL shown at 22 by 22 pixels |
-| `side` | `home`, `centre` or `away`: orders buttons in one row, for a versus page |
+| `side` | `home`, `centre` or `away`: orders buttons in one row, for a page that sets two sides against each other |
 | `days` | The follow lapses after this many days (30 at most) |
 
 ```php
 add_filter( 'ace_nudge_targets', function ( $targets ) {
 	foreach ( $targets as &$target ) {
 		if ( 'category' === $target['type'] ) {
-			$colour = get_term_meta( (int) $target['id'], 'team_colour', true );
+			$colour = get_term_meta( (int) $target['id'], 'topic_colour', true );
 			if ( $colour ) {
 				$target['colour']   = $colour;
 				$target['contrast'] = '#ffffff';
@@ -78,26 +78,26 @@ Another plugin can offer an alert of its own, off until a reader switches it on,
 ```php
 // 1. Name it. Ids are lower case letters, digits and hyphens, 40 characters at most.
 add_filter( 'ace_nudge_site_follows', function ( $follows ) {
-	$follows['round-updates'] = 'Round updates';
+	$follows['sale-alerts'] = 'Sale alerts';
 	return $follows;
 } );
 
 // 2. Send it. broadcast() returns false during quiet hours, so try again later.
-function example_send_round_update() {
+function example_send_sale_alert() {
 	if ( ! class_exists( 'Ace_Nudge_Dispatch' ) ) {
 		return;
 	}
-	$sent = Ace_Nudge_Dispatch::broadcast( 'round-updates', array(
-		'title' => 'Round 3 is open',
-		'body'  => 'Make your picks before Saturday.',
-		'url'   => home_url( '/predictor/' ),
-		'tag'   => 'round-updates',
+	$sent = Ace_Nudge_Dispatch::broadcast( 'sale-alerts', array(
+		'title' => 'The winter sale is open',
+		'body'  => 'Selected lines are reduced until Sunday.',
+		'url'   => home_url( '/sale/' ),
+		'tag'   => 'sale-alerts',
 	) );
 	if ( ! $sent ) {
-		wp_schedule_single_event( time() + HOUR_IN_SECONDS, 'example_send_round_update' );
+		wp_schedule_single_event( time() + HOUR_IN_SECONDS, 'example_send_sale_alert' );
 	}
 }
-add_action( 'example_send_round_update', 'example_send_round_update' );
+add_action( 'example_send_sale_alert', 'example_send_sale_alert' );
 ```
 
 Each reader's daily cap applies. *NUDGE*'s own dialog does not list these switches, so offer the switch in your own interface with the browser API:
@@ -105,8 +105,8 @@ Each reader's daily cap applies. *NUDGE*'s own dialog does not list these switch
 ```js
 const api = window.aceNudge && window.aceNudge.api;
 if ( api && api.available && api.status().notifications ) {
-	checkbox.checked = api.site( 'round-updates' );
-	checkbox.addEventListener( 'change', () => api.setSite( 'round-updates', checkbox.checked ) );
+	checkbox.checked = api.site( 'sale-alerts' );
+	checkbox.addEventListener( 'change', () => api.setSite( 'sale-alerts', checkbox.checked ) );
 }
 ```
 
@@ -125,7 +125,7 @@ document.addEventListener( 'ace-nudge:notifications', ( e ) => {
 } );
 
 // Follow from your own button. Runs the age check and permission steps when needed.
-window.aceNudge.api.follow( { type: 'category', id: 12, key: 'category:12', label: 'Cycling', days: 7 } );
+window.aceNudge.api.follow( { type: 'category', id: 12, key: 'category:12', label: 'Travel', days: 7 } );
 ```
 
 `window.aceNudge` only exists in `test` and `on` modes, and `api` is set when `notify.js` has run, so check for both.
@@ -148,9 +148,9 @@ add_filter( 'ace_nudge_update_reason', function ( $reason, $after, $before ) {
 // Mark a result on a feed item. Items are keyed by post id.
 add_filter( 'ace_nudge_feed_items', function ( $items, $since ) {
 	foreach ( $items as $id => $item ) {
-		$settled = (int) get_post_meta( $id, 'example_result_time', true );
-		if ( $settled ) {
-			$items[ $id ]['result'] = $settled;
+		$decided = (int) get_post_meta( $id, 'example_result_time', true );
+		if ( $decided ) {
+			$items[ $id ]['result'] = $decided;
 			$items[ $id ]['reason'] = 'result';
 		}
 	}
@@ -189,87 +189,6 @@ add_filter( 'ace_nudge_onboarding', function ( $steps ) {
 ```
 
 `target` is `bell` or a selector, and `icon` is `bell` or `settings`. A step whose target is not on the page is skipped, and each step is shown once per browser.
-
-## Games and fixtures
-
-Game follows are an optional integration with a companion fixtures plugin, and stay inactive without one. *NUDGE* itself makes no outbound calls for scores: it reads a snapshot the fixtures plugin already cached. The integration expects:
-
-| Expected | Used for |
-|---|---|
-| Class `Ace_Sports_Feed` with a static `normalise_league_fixture_id( string )` | Turning a post's stored id into a fixture id of the form `league:SLUG-YYYYMMDD` |
-| Class `ACE_Teams_Events_Plugin` with a constant `EVENT_TAX` | The taxonomy whose term slugs name the competitions ("hubs") a post belongs to |
-| Post meta `ace_event_tournament_fixture_id` | The fixture a post covers |
-| Post meta `ace_event_primary_kickoff_at` or `ace_event_kickoff_at` | Kick-off, as a Unix time |
-| Transient `ace_sf_live_HUB` (and `ace_sf_live_HUB_stale`) | An array keyed by fixture id, each item with `state` (`pre`, `in` or `post`), `home`, `away`, `home_score`, `away_score`, `title` and `kickoff` |
-
-A post that covers a game then offers a "follow this game" button. Followers get a reminder at 60, 30 and 5 minutes before kick-off, then kick-off, each score change and full time, after which the follow ends. Following a team from a game's page also follows that game. A game can be followed until the day after its date.
-
-## A bet slip
-
-For sites where readers build a bet slip in the browser. *NUDGE* never places anything and never includes potential returns in a notification. All of it is off unless the site supplies the pieces below, and the reader-facing alerts are opt-in.
-
-### In the browser
-
-```php
-add_filter( 'ace_nudge_slip_config', fn() => array(
-	'storage' => 'exampleSlip',                        // localStorage key holding { picks: [ ... ] }
-	'state'   => rest_url( 'example/v1/slip-state' ),  // public, cacheable endpoint
-) );
-```
-
-The script reads the picks from `window.aceSlip.picks()` when that exists, otherwise from the `storage` key. Each pick may have `market_id`, `selection_id`, `runner`, `event`, `dec` (decimal price), `sport`, `added` (milliseconds), `source` (`{ url, post_id }`) and `example` (ignored when true).
-
-It asks the `state` endpoint for `?s=MARKET:SELECTION,MARKET:SELECTION` and expects:
-
-```json
-{ "picks": { "1.234:5678": { "state": "open", "dec": 3.5, "frac": "5/2", "inplay": false, "result": "" } } }
-```
-
-`state` is `open`, `suspended`, `closed` or `settled`, and `result` is `won`, `placed`, `lost` or `removed`. The notification list then shows results, markets closing, events starting, price moves of 1 per cent or more, and updates to the article a pick came from.
-
-### On the server
-
-For push alerts, the site's slip script sends a summary to `POST /slip` whenever the slip changes, and `POST /slip_done` when it is placed or cleared (parameters in [REST API](rest-api.md)). The token is the browser's *NUDGE* token, in `localStorage` under `aceNudge.token`.
-
-- Reminder (`site:slipremind`): one push, 15 minutes before the first event.
-- Price alerts (`site:slipprices`): every 5 minutes *NUDGE* asks the site for current state through `ace_nudge_slip_state` and tells each change once: a move of 4 per cent or more, a market suspended or closed, or a result.
-
-```php
-add_filter( 'ace_nudge_slip_state', function ( $state, $pairs ) {
-	foreach ( $pairs as $key => $pair ) {
-		[ $market, $selection ] = $pair;
-		$cached = example_cached_price( $market, $selection ); // Your own cache. No outbound calls here.
-		if ( $cached ) {
-			$state[ $key ] = array( 'state' => 'open', 'dec' => $cached['dec'], 'frac' => $cached['frac'], 'result' => '' );
-		}
-	}
-	return $state;
-}, 10, 2 );
-```
-
-Market ids must look like `1.234567` and selection ids must be digits, or they are dropped.
-
-### Tips
-
-```php
-// For the hourly "New tip" push (site:tips). Each tip needs 'runner' and 'price'.
-add_filter( 'ace_nudge_post_tips', function ( $tips, $post_id ) {
-	return (array) get_post_meta( $post_id, 'example_tips', true );
-}, 10, 2 );
-
-// For "Recommended" items in the notification list, add the tips to the feed too.
-add_filter( 'ace_nudge_feed_items', function ( $items ) {
-	foreach ( $items as $id => $item ) {
-		$tips = (array) get_post_meta( $id, 'example_tips', true );
-		if ( $tips ) {
-			$items[ $id ]['tips'] = $tips; // Each: runner, price, dec, sport.
-		}
-	}
-	return $items;
-} );
-```
-
-The tip push ends with a fixed responsible gambling line and is only sent to browsers that passed the age check to subscribe.
 
 ## Local development
 
