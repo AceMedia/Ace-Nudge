@@ -19,7 +19,7 @@ Set `ACE_NUDGE_MODE` to `test`, visit the site with `?ace_nudge_preview=1`, and 
 
 ## Licence of contributions
 
-Ace NUDGE is licensed under GPL-2.0-or-later. By contributing you agree that your contribution is licensed under the same terms. Only submit code you have the right to contribute, and do not add third-party code without raising it in an issue first.
+Ace *NUDGE* is licensed under GPL-2.0-or-later. By contributing you agree that your contribution is licensed under the same terms. Only submit code you have the right to contribute, and do not add third-party code without raising it in an issue first.
 
 ## Releases
 

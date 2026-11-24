@@ -134,6 +134,6 @@ No parameters. Cached for one minute on the server and sent with `Cache-Control:
 | `/?ace_nudge_sw=1` | Serves the service worker |
 | `/?ace_nudge_confirm=TOKEN` | Shows a button. A POST activates the newsletter subscription |
 | `/?ace_nudge_unsub=TOKEN` | Shows a button. A POST withdraws it. Mail clients' one-click unsubscribe POSTs here |
-| `?ace_nudge_preview=1` | In `test` mode, switches NUDGE on for this browser |
+| `?ace_nudge_preview=1` | In `test` mode, switches *NUDGE* on for this browser |
 | `?ace_nudge_manage=1` | Opens the manage panel. The notification's "Stop alerts" action leads here |
 | `?ref=nudge-ID` | Added to push links. Marks that notification read, then is removed from the address |

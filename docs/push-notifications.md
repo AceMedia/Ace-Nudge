@@ -1,6 +1,6 @@
 # Push notifications
 
-NUDGE sends Web Push itself: VAPID (RFC 8292) for identification and `aes128gcm` payload encryption (RFC 8291), written against PHP's OpenSSL functions. There is no third-party push service or library.
+*NUDGE* sends Web Push itself: VAPID (RFC 8292) for identification and `aes128gcm` payload encryption (RFC 8291), written against PHP's OpenSSL functions. There is no third-party push service or library.
 
 ## Requirements
 
@@ -27,13 +27,13 @@ The server accepts endpoints only on known push service hosts (`googleapis.com`,
 
 ## iPhone and iPad
 
-Safari on iOS only allows notifications for a site added to the Home Screen. Give NUDGE a web app manifest:
+Safari on iOS only allows notifications for a site added to the Home Screen. Give *NUDGE* a web app manifest:
 
 ```php
 add_filter( 'ace_nudge_manifest_url', fn() => home_url( '/manifest.webmanifest' ) );
 ```
 
-In a normal Safari tab, NUDGE explains how to add the site to the Home Screen instead of asking for permission.
+In a normal Safari tab, *NUDGE* explains how to add the site to the Home Screen instead of asking for permission.
 
 ## What is sent
 

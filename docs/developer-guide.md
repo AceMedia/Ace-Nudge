@@ -1,8 +1,8 @@
 # Developer guide
 
-NUDGE keeps site rules out of the plugin. A site, theme or companion plugin shapes it through filters, one action, a few static methods and a browser API. The full lists are in [Hooks and the browser API](hooks.md). The examples here were checked against the 0.7.2 source.
+*NUDGE* keeps site rules out of the plugin. A site, theme or companion plugin shapes it through filters, one action, a few static methods and a browser API. The full lists are in [Hooks and the browser API](hooks.md). The examples here were checked against the 0.7.2 source.
 
-Guard calls into NUDGE so your code keeps working without it:
+Guard calls into *NUDGE* so your code keeps working without it:
 
 ```php
 if ( function_exists( 'ace_nudge_mode' ) && 'off' !== ace_nudge_mode() ) {
@@ -100,7 +100,7 @@ function example_send_round_update() {
 add_action( 'example_send_round_update', 'example_send_round_update' );
 ```
 
-Each reader's daily cap applies. NUDGE's own dialog does not list these switches, so offer the switch in your own interface with the browser API:
+Each reader's daily cap applies. *NUDGE*'s own dialog does not list these switches, so offer the switch in your own interface with the browser API:
 
 ```js
 const api = window.aceNudge && window.aceNudge.api;
@@ -192,7 +192,7 @@ add_filter( 'ace_nudge_onboarding', function ( $steps ) {
 
 ## Games and fixtures
 
-Game follows are an optional integration with a companion fixtures plugin, and stay inactive without one. NUDGE itself makes no outbound calls for scores: it reads a snapshot the fixtures plugin already cached. The integration expects:
+Game follows are an optional integration with a companion fixtures plugin, and stay inactive without one. *NUDGE* itself makes no outbound calls for scores: it reads a snapshot the fixtures plugin already cached. The integration expects:
 
 | Expected | Used for |
 |---|---|
@@ -206,7 +206,7 @@ A post that covers a game then offers a "follow this game" button. Followers get
 
 ## A bet slip
 
-For sites where readers build a bet slip in the browser. NUDGE never places anything and never includes potential returns in a notification. All of it is off unless the site supplies the pieces below, and the reader-facing alerts are opt-in.
+For sites where readers build a bet slip in the browser. *NUDGE* never places anything and never includes potential returns in a notification. All of it is off unless the site supplies the pieces below, and the reader-facing alerts are opt-in.
 
 ### In the browser
 
@@ -229,10 +229,10 @@ It asks the `state` endpoint for `?s=MARKET:SELECTION,MARKET:SELECTION` and expe
 
 ### On the server
 
-For push alerts, the site's slip script sends a summary to `POST /slip` whenever the slip changes, and `POST /slip_done` when it is placed or cleared (parameters in [REST API](rest-api.md)). The token is the browser's NUDGE token, in `localStorage` under `aceNudge.token`.
+For push alerts, the site's slip script sends a summary to `POST /slip` whenever the slip changes, and `POST /slip_done` when it is placed or cleared (parameters in [REST API](rest-api.md)). The token is the browser's *NUDGE* token, in `localStorage` under `aceNudge.token`.
 
 - Reminder (`site:slipremind`): one push, 15 minutes before the first event.
-- Price alerts (`site:slipprices`): every 5 minutes NUDGE asks the site for current state through `ace_nudge_slip_state` and tells each change once: a move of 4 per cent or more, a market suspended or closed, or a result.
+- Price alerts (`site:slipprices`): every 5 minutes *NUDGE* asks the site for current state through `ace_nudge_slip_state` and tells each change once: a move of 4 per cent or more, a market suspended or closed, or a result.
 
 ```php
 add_filter( 'ace_nudge_slip_state', function ( $state, $pairs ) {

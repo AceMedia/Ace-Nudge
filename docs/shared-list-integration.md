@@ -4,21 +4,21 @@ Status: proposal. Nothing here is built yet.
 
 ## Goal
 
-Make NUDGE the single mailing list for the ACE plugins. Other plugins collect addresses and ask for consent. NUDGE owns consent evidence, double opt-in, suppression and unsubscribe.
+Make *NUDGE* the single mailing list for the ACE plugins. Other plugins collect addresses and ask for consent. *NUDGE* owns consent evidence, double opt-in, suppression and unsubscribe.
 
 ## Today
 
 | Plugin | Holds addresses | Consent | Suppression | Unsubscribe |
 |---|---|---|---|---|
-| Ace NUDGE | Yes (`subscribers`) | Logged with wording | Yes | Yes, one click |
+| Ace *NUDGE* | Yes (`subscribers`) | Logged with wording | Yes | Yes, one click |
 | A customer engagement plugin | `basket_recovery`, `form_submissions`, `chat_conversations`, `calls` | None for marketing | None | Basket emails only |
 | A forms plugin | `ace_form_entries.contact_email` | Per form field only | None | None |
 
 ## Design
 
-### 1. A small public API in NUDGE
+### 1. A small public API in *NUDGE*
 
-Other plugins call these behind `function_exists()` so NUDGE stays optional.
+Other plugins call these behind `function_exists()` so *NUDGE* stays optional.
 
 - `ace_nudge_request_subscription( string $email, array $args ): bool`. Args: `source` (for example `form:contact`), `wording`, `frequency`, `categories`. Creates a pending subscriber and sends the double opt-in email. Same answer whatever happens, as the REST route does.
 - `ace_nudge_is_suppressed( string $email ): bool`.
@@ -35,9 +35,9 @@ Add `source varchar(40)` to `subscribers`, and store the source in `consent_log`
 
 ### 4. Suppression honoured everywhere
 
-Before any non-essential email, Engagement and Content Enhancer call `ace_nudge_is_suppressed`. A global "never email me" through NUDGE's unsubscribe page adds the address to suppression for all of them.
+Before any non-essential email, Engagement and Content Enhancer call `ace_nudge_is_suppressed`. A global "never email me" through *NUDGE*'s unsubscribe page adds the address to suppression for all of them.
 
-### 5. Gaps to close in NUDGE first
+### 5. Gaps to close in *NUDGE* first
 
 1. A send queue with batches, so a large list does not run inside one cron request.
 2. Bounce and complaint intake (for example SES notifications through SNS) writing to `suppression`.

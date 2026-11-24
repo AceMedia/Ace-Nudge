@@ -89,8 +89,8 @@ Anything site-specific comes through filters, so the plugin itself stays generic
 | `follows()` | Everything this browser follows, each `{ key, keys, type, label }` |
 | `status()` | `{ available, ready, push, subscribed, notifications, scope, newsletter, count }` |
 | `on(fn)` | Calls `fn` with the follow keys after every change. Returns a function that removes the listener |
-| `open(section)` | Opens NUDGE's own steps: `manage` (the default), `push`, `interests` or `newsletter` |
-| `manage()` | Opens NUDGE's own manage dialog |
+| `open(section)` | Opens *NUDGE*'s own steps: `manage` (the default), `push`, `interests` or `newsletter` |
+| `manage()` | Opens *NUDGE*'s own manage dialog |
 
 ### Notifications
 
@@ -105,7 +105,7 @@ Anything site-specific comes through filters, so the plugin itself stays generic
 
 ### For a settings panel
 
-`info()`, `pushBlocker()` (`ios`, `unsupported`, `denied` or `null`), `ageNeeded()`, `confirmAge(year)`, `pushOn()`, `pushOff()`, `categories()`, `site(which)`, `setSite(which, on)`, `setCategory(label, on)` and `newsletter({ email, frequency, categories, website })` let a site's own settings panel run every alert control, with NUDGE's rules.
+`info()`, `pushBlocker()` (`ios`, `unsupported`, `denied` or `null`), `ageNeeded()`, `confirmAge(year)`, `pushOn()`, `pushOff()`, `categories()`, `site(which)`, `setSite(which, on)`, `setCategory(label, on)` and `newsletter({ email, frequency, categories, website })` let a site's own settings panel run every alert control, with *NUDGE*'s rules.
 
 ### Events
 
@@ -114,11 +114,11 @@ Events fire on `document`:
 - `ace-nudge:change` with `{ status, follows }` after every change to what is followed.
 - `ace-nudge:notifications` with `{ items, unread }` after every change to the list.
 
-Where NUDGE stays quiet (test mode without a preview, or a failed age check) `api.available` is `false`, `api.reason` and `status().reason` say why (`test` or `age`), and the read-only methods still answer with empty values.
+Where *NUDGE* stays quiet (test mode without a preview, or a failed age check) `api.available` is `false`, `api.reason` and `status().reason` say why (`test` or `age`), and the read-only methods still answer with empty values.
 
 ### Settings panel integration
 
-When the page has a `window.aceSettings` object with an `open(tab, from)` method and an element with id `ace-accessibility-panel`, the bell, the manage links, `?ace_nudge_manage=1` and a follow button that is already following open that panel's `alerts` tab (or `alerts-notifications` when there are notifications) instead of NUDGE's own dialog. The first follow from a page still runs NUDGE's own opt-in steps.
+When the page has a `window.aceSettings` object with an `open(tab, from)` method and an element with id `ace-accessibility-panel`, the bell, the manage links, `?ace_nudge_manage=1` and a follow button that is already following open that panel's `alerts` tab (or `alerts-notifications` when there are notifications) instead of *NUDGE*'s own dialog. The first follow from a page still runs *NUDGE*'s own opt-in steps.
 
 ## CSS custom properties
 

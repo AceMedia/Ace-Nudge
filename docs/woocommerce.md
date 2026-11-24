@@ -1,6 +1,6 @@
 # WooCommerce
 
-With WooCommerce active and NUDGE in `test` or `on` mode, customers get three things: order updates on a device, a say over optional emails, and product-update emails. Essential order emails are never touched.
+With WooCommerce active and *NUDGE* in `test` or `on` mode, customers get three things: order updates on a device, a say over optional emails, and product-update emails. Essential order emails are never touched.
 
 ## Order updates on a device
 
@@ -30,7 +30,7 @@ Signed-in customers then see a tick box for each on their Edit account form, und
 
 Customers can opt in to "Email me when something I've bought is back in stock or drops in price" at checkout (classic and block), at registration and on the Edit account form. There is no confirmation email, because the address is the customer's own.
 
-When a product they bought comes back in stock or drops in price, they get the "Product update (Ace NUDGE)" email. It is an ordinary WooCommerce email:
+When a product they bought comes back in stock or drops in price, they get the "Product update (Ace *NUDGE*)" email. It is an ordinary WooCommerce email:
 
 - It appears under WooCommerce, Settings, Emails, where it can be disabled and its subject and heading changed.
 - It uses the store's email header, footer and styles.

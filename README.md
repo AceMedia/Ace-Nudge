@@ -1,4 +1,4 @@
-# Ace NUDGE
+# Ace *NUDGE*
 
 [![Release](https://img.shields.io/badge/release-0.7.2-2271b1)](https://github.com/AceMedia/Ace-Nudge/releases/latest)
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
@@ -70,7 +70,7 @@ The tables are created on the first request after activation. Site rules such as
 - [Operations](docs/operations.md): WP-CLI, cron, limits, going live, deployment
 - [Troubleshooting](docs/troubleshooting.md)
 - [Developer guide](docs/developer-guide.md): extending through filters, with examples, plus the optional fixtures and bet slip integrations
-- [Shared mailing list design](docs/shared-list-integration.md): a proposal for using NUDGE as the list for other plugins
+- [Shared mailing list design](docs/shared-list-integration.md): a proposal for using *NUDGE* as the list for other plugins
 - [Changelog](CHANGELOG.md)
 
 The [GitHub wiki](https://github.com/AceMedia/Ace-Nudge/wiki) carries the same pages with an installation guide and FAQ.
@@ -95,4 +95,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as desc
 
 Copyright (C) 2026 Shane Rounce.
 
-Ace NUDGE is free software, released under the [GNU General Public License, version 2 or (at your option) any later version](LICENSE). You may use, study, change and share it under those terms. It comes with no warranty. It bundles no third-party code.
+Ace *NUDGE* is free software, released under the [GNU General Public License, version 2 or (at your option) any later version](LICENSE). You may use, study, change and share it under those terms. It comes with no warranty. It bundles no third-party code.
