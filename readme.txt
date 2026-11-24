@@ -4,7 +4,7 @@ Tags: notifications, web push, newsletter, follow, woocommerce
 Requires at least: 6.5
 Tested up to: 6.8
 Requires PHP: 8.1
-Stable tag: 0.7.1
+Stable tag: 0.7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -61,6 +61,9 @@ When the site has a settings panel (window.aceSettings with its Alerts tab), the
 Each change also fires ace-nudge:change on document with { status, follows }. In test mode without a preview, or after a failed age check, api.available is false and status().reason says why.
 
 == Changelog ==
+
+= 0.7.2 =
+Test mode now also limits product update emails to the test addresses. The confirmation link only confirms a pending email request.
 
 = 0.7.1 =
 The bubble's label is a small flag across its left edge. Documentation and release tooling.

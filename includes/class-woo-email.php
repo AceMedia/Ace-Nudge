@@ -38,7 +38,7 @@ class Ace_Nudge_Product_Update_Email extends WC_Email {
 		$this->recipient   = $sub->email;
 		$this->unsubscribe = add_query_arg( 'ace_nudge_unsub', rawurlencode( Ace_Nudge_Store::token( $sub->id ) ), home_url( '/' ) );
 		$this->placeholders['{product_name}'] = $product->get_name();
-		if ( $this->is_enabled() && $this->get_recipient() && $this->send( $this->get_recipient(), $this->get_subject(), $this->get_content(), $this->get_headers(), $this->get_attachments() ) ) {
+		if ( $this->is_enabled() && $this->get_recipient() && Ace_Nudge_Dispatch::email_allowed( $sub->email ) && $this->send( $this->get_recipient(), $this->get_subject(), $this->get_content(), $this->get_headers(), $this->get_attachments() ) ) {
 			Ace_Nudge_Dispatch::count_sent( 'email' );
 		}
 		$this->restore_locale();

@@ -1,6 +1,6 @@
 # Ace NUDGE
 
-[![Release](https://img.shields.io/badge/release-0.7.1-2271b1)](https://github.com/AceMedia/Ace-Nudge/releases/latest)
+[![Release](https://img.shields.io/badge/release-0.7.2-2271b1)](https://github.com/AceMedia/Ace-Nudge/releases/latest)
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
 [![WordPress](https://img.shields.io/badge/WordPress-6.5%2B-21759b?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![Licence](https://img.shields.io/badge/licence-GPL--2.0--or--later-green)](LICENSE)
@@ -13,7 +13,7 @@ Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and a
 
 Visitors follow a story, product, category, game or the whole site, with no account. Consent is logged with the exact wording shown. On WooCommerce sites, customers can also turn on order updates, back in stock and price drop alerts.
 
-Current version: **0.7.1**. Requires WordPress 6.5 and PHP 8.1 with the OpenSSL extension.
+Current version: **0.7.2**. Requires WordPress 6.5 and PHP 8.1 with the OpenSSL extension.
 
 ## What it does
 

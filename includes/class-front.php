@@ -42,9 +42,15 @@ class Ace_Nudge_Front {
 		nocache_headers();
 		$sub = Ace_Nudge_Store::subscriber_from_token( $token );
 		if ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
-			if ( $sub && 'confirm' === $action ) {
-				$wpdb->update( Ace_Nudge_Store::t( 'subscribers' ), array( 'status' => 'active' ), array( 'id' => $sub->id ) );
-				Ace_Nudge_Store::log( $sub->endpoint_hash, 'email', 'granted', true );
+			if ( 'confirm' === $action ) {
+				// Only a pending email request can be confirmed. Anything else gets no thanks and no consent entry.
+				if ( ! $sub || 'email' !== $sub->channel ) {
+					wp_die( 'This confirmation link is not valid, or has expired. Please sign up again.', Ace_Nudge_Settings::brand()['name'], array( 'response' => 400 ) );
+				}
+				if ( 'active' !== $sub->status ) {
+					$wpdb->update( Ace_Nudge_Store::t( 'subscribers' ), array( 'status' => 'active' ), array( 'id' => $sub->id ) );
+					Ace_Nudge_Store::log( $sub->endpoint_hash, 'email', 'granted', true );
+				}
 			} elseif ( $sub ) {
 				Ace_Nudge_Store::withdraw( $sub );
 			}

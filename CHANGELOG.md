@@ -2,6 +2,13 @@
 
 All notable changes to Ace NUDGE. Each released version has its own section, headed with the bare version number, because the release workflow takes its notes from the section with that exact heading. Dates are the dates of the commits that set each version.
 
+## 0.7.2
+
+Released 2026-11-24.
+
+- Fixed: in test mode, back in stock and price drop emails went to real customers. They now follow the same rule as the newsletter, so outside `on` mode they only reach addresses in `ACE_NUDGE_TEST_EMAILS`.
+- Fixed: the confirmation link said "Thanks, you're subscribed" for any token, and a push subscriber's token posted to it logged an email consent. Only a pending email request can now be confirmed. An invalid or expired link shows an error, and an already active subscriber is not logged twice.
+
 ## 0.7.1
 
 Released 2026-11-16. Documentation and release tooling added 2026-11-24.

@@ -55,4 +55,4 @@ The product-update opt-in is registered as an additional checkout field, `ace-nu
 
 ## Testing
 
-Push to devices follows the test guard like any other push. The product-update email is sent by WooCommerce's mailer and is not limited to `ACE_NUDGE_TEST_EMAILS`, so disable it under WooCommerce, Settings, Emails on a test copy with real customers.
+Push to devices and the product-update email both follow the test guard: outside `on` mode the email only reaches addresses in `ACE_NUDGE_TEST_EMAILS` (from 0.7.2; earlier versions did not check, so disable it under WooCommerce, Settings, Emails on a test copy with real customers).

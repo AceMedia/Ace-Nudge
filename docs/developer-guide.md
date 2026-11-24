@@ -1,6 +1,6 @@
 # Developer guide
 
-NUDGE keeps site rules out of the plugin. A site, theme or companion plugin shapes it through filters, one action, a few static methods and a browser API. The full lists are in [Hooks and the browser API](hooks.md). The examples here were checked against the 0.7.1 source.
+NUDGE keeps site rules out of the plugin. A site, theme or companion plugin shapes it through filters, one action, a few static methods and a browser API. The full lists are in [Hooks and the browser API](hooks.md). The examples here were checked against the 0.7.2 source.
 
 Guard calls into NUDGE so your code keeps working without it:
 
