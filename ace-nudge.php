@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Ace NUDGE
  * Description: Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and an email newsletter: follow a story, product, category or game, or the whole site, with consent evidence and an admin overview.
- * Version: 0.7.3
+ * Version: 0.7.4
  * Author: Shane Rounce
  * Author URI: https://acemedia.ninja
  * Plugin URI: https://github.com/AceMedia/Ace-Nudge
@@ -40,11 +40,11 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'ACE_NUDGE_VERSION', '0.7.3' );
+define( 'ACE_NUDGE_VERSION', '0.7.4' );
 define( 'ACE_NUDGE_DIR', __DIR__ );
 define( 'ACE_NUDGE_URL', plugin_dir_url( __FILE__ ) );
 
-foreach ( array( 'settings', 'store', 'push', 'rest', 'dispatch', 'feed', 'front', 'blocks', 'privacy', 'woo' ) as $part ) {
+foreach ( array( 'util', 'settings', 'store', 'push', 'rest', 'dispatch', 'feed', 'front', 'blocks', 'privacy', 'woo' ) as $part ) {
 	require_once __DIR__ . '/includes/class-' . $part . '.php';
 }
 if ( is_admin() ) {
@@ -61,6 +61,15 @@ function ace_nudge_mode() {
 }
 
 add_action( 'init', array( 'Ace_Nudge_Store', 'maybe_install' ) );
+// Cron events do nothing while NUDGE is off or deactivated, so they are not left booked.
+register_deactivation_hook( __FILE__, array( 'Ace_Nudge_Dispatch', 'unschedule' ) );
+if ( 'off' === ace_nudge_mode() ) {
+	add_action( 'init', function () {
+		if ( wp_next_scheduled( Ace_Nudge_Dispatch::LIVE_HOOK ) || wp_next_scheduled( Ace_Nudge_Dispatch::BATCH_HOOK ) || wp_next_scheduled( Ace_Nudge_Dispatch::MAIL_HOOK ) ) {
+			Ace_Nudge_Dispatch::unschedule();
+		}
+	} );
+}
 Ace_Nudge_Blocks::boot();
 Ace_Nudge_Privacy::boot();
 

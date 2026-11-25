@@ -33,7 +33,7 @@ Where a minimum age is set, the browser asks for a year of birth before any foll
 
 `Ace_Nudge_Store::withdraw()` deletes the subscriber and their follows and keeps only a hashed log line.
 
-The WordPress personal data exporter and eraser are registered, so Tools, Export Personal Data and Erase Personal Data cover email subscribers. The export holds the address, status and sign-up time.
+The WordPress personal data exporter and eraser are registered, so Tools, Export Personal Data and Erase Personal Data cover email subscribers. The export holds the address, status, sign-up time, the subscriber's follows and their consent record (what was agreed, when, and the wording shown). The eraser withdraws the subscription and says that the hashed consent record is retained.
 
 ## Suppression
 

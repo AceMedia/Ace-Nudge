@@ -1,7 +1,9 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/** Testing and suppression tools for Ace Notifications. */
+/**
+ * Testing and suppression tools for Ace NUDGE.
+ */
 class Ace_Nudge_CLI {
 	/**
 	 * Import a suppression file: one email address or SHA-256 hash per line.
@@ -10,9 +12,16 @@ class Ace_Nudge_CLI {
 	 */
 	public function suppress( $args ) {
 		global $wpdb;
-		$n = 0;
-		foreach ( file( $args[0], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $line ) {
-			$line = trim( $line );
+		$n     = 0;
+		$lines = ! empty( $args[0] ) && is_readable( $args[0] ) ? file( $args[0], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) : false;
+		if ( false === $lines ) {
+			WP_CLI::error( 'Cannot read that file.' );
+		}
+		foreach ( $lines as $line ) {
+			$line = strtolower( trim( $line ) );
+			if ( '' === $line ) {
+				continue;
+			}
 			$hash = preg_match( '/^[a-f0-9]{64}$/', $line ) ? $line : Ace_Nudge_Store::email_hash( $line );
 			$n   += (int) $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . Ace_Nudge_Store::t( 'suppression' ) . ' (email_hash, reason, created_at) VALUES (%s, %s, %s)', $hash, 'import', current_time( 'mysql', true ) ) );
 			$sub  = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Ace_Nudge_Store::t( 'subscribers' ) . ' WHERE endpoint_hash = %s', $hash ) );
@@ -23,7 +32,9 @@ class Ace_Nudge_CLI {
 		WP_CLI::success( "$n added." );
 	}
 
-	/** Counts of subscribers, follows and consent log entries. */
+	/**
+	 * Counts of subscribers, follows and consent log entries.
+	 */
 	public function status() {
 		global $wpdb;
 		foreach ( array( 'subscribers', 'follows', 'consent_log', 'suppression' ) as $t ) {
@@ -40,11 +51,13 @@ class Ace_Nudge_CLI {
 		echo Ace_Nudge_Dispatch::render_digest( Ace_Nudge_Dispatch::digest_sections( array(), (int) ( $assoc['days'] ?? 7 ) ), home_url( '/' ) );
 	}
 
-	/** Send a test notification to every push subscriber. */
+	/**
+	 * Send a test notification to every push subscriber (in test mode, only to ACE_NUDGE_TEST_PUSH).
+	 */
 	public function test_push() {
 		global $wpdb;
 		foreach ( $wpdb->get_results( 'SELECT * FROM ' . Ace_Nudge_Store::t( 'subscribers' ) . " WHERE channel = 'push'" ) as $sub ) {
-			WP_CLI::log( '#' . $sub->id . ' HTTP ' . Ace_Nudge_Push::send( $sub, array( 'title' => 'Test', 'body' => 'Ace Notifications test', 'url' => home_url( '/' ), 'tag' => 'test' ) ) );
+			WP_CLI::log( '#' . $sub->id . ' HTTP ' . Ace_Nudge_Push::send( $sub, array( 'title' => 'Test', 'body' => 'Ace NUDGE test', 'url' => home_url( '/' ), 'tag' => 'test' ) ) );
 		}
 	}
 }

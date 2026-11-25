@@ -1,6 +1,6 @@
 # Ace *NUDGE*
 
-[![Release](https://img.shields.io/badge/release-0.7.3-2271b1)](https://github.com/AceMedia/Ace-Nudge/releases/latest)
+[![Release](https://img.shields.io/badge/release-0.7.4-2271b1)](https://github.com/AceMedia/Ace-Nudge/releases/latest)
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
 [![WordPress](https://img.shields.io/badge/WordPress-6.5%2B-21759b?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![Licence](https://img.shields.io/badge/licence-GPL--2.0--or--later-green)](LICENSE)
@@ -13,7 +13,7 @@ Notifications, Updates, Digests, Gated Email. Opt-in browser notifications and a
 
 Visitors follow a story, product, category, scheduled live event or the whole site, with no account. Consent is logged with the exact wording shown. On WooCommerce sites, customers can also turn on order updates, back in stock and price drop alerts.
 
-Current version: **0.7.3**. Requires WordPress 6.5 and PHP 8.1 with the OpenSSL extension.
+Current version: **0.7.4**. Requires WordPress 6.5 and PHP 8.1 with the OpenSSL extension.
 
 ## What it does
 
@@ -81,7 +81,7 @@ Follow Button (`ace-nudge/follow`), Alerts Button (`ace-nudge/alerts-button`) an
 
 ## Known limits
 
-Sending is one `wp_mail` call per subscriber inside a cron run, with no queue. There is no bounce or complaint handling and no manual campaign composer. Quiet hours use the Europe/London time zone. The site must be served from the root of its domain. See [Operations](docs/operations.md) and [the shared list design](docs/shared-list-integration.md) for the plan.
+Sending is one `wp_mail` call per subscriber inside a cron run, with no queue. There is no bounce or complaint handling and no manual campaign composer. Quiet hours and the newsletter schedule use the site's time zone. See [Operations](docs/operations.md) and [the shared list design](docs/shared-list-integration.md) for the plan.
 
 ## Building a release
 

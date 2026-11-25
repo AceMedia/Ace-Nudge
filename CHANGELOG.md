@@ -2,6 +2,55 @@
 
 All notable changes to Ace NUDGE. Each released version has its own section, headed with the bare version number, because the release workflow takes its notes from the section with that exact heading. Dates are the dates of the commits that set each version.
 
+## 0.7.4
+
+Released 2026-11-25 (not yet tagged).
+
+A bug-fix release from a code audit. No database change; existing subscribers, tokens and consent log entries are untouched.
+
+Double opt-in, suppression and the consent log:
+- Fixed: a customer who had opted into product emails at checkout could never join the newsletter, because the sign-up returned early for any active address. They now get a confirmation email, and the newsletter starts, with the frequency and categories they chose, only when they confirm it.
+- Fixed: two sign-ups for one address at once could leave one of them holding a confirmation link for a subscriber that was never saved. The row is now inserted with `INSERT IGNORE` and read back.
+- Fixed: two clicks on one confirmation link (a double tap, a mail scanner) could log the consent grant twice. The status change is now conditional and only the request that made it logs.
+- Fixed: a confirmation link could still confirm an address that had since been suppressed. It is now refused.
+- Fixed: an address of more than 190 characters failed to save but was still sent a confirmation link that could not work. It is now rejected with the invalid address message.
+- Fixed: the sign-up form could be used to send one address any number of confirmation emails. There is now one every ten minutes per address.
+- Fixed: the consent log version was fixed text. It now passes through the new `ace_nudge_wording_version` filter, so a site that changes its wording can version it. Consent log writes report whether they succeeded.
+- Fixed: the newsletter dialog and `api.newsletter()` always sent `age_confirmed: true`. They now send the age check's real result, so the server refuses a sign-up that skipped it on a site with a minimum age.
+- Fixed: deleting an unconfirmed email request left its follows behind. The daily job now removes follows that have no subscriber.
+
+Security and abuse:
+- Fixed: the rate limiter believed `CF-Connecting-IP` from anyone, so it could be dodged by sending a different value each time. The header is now only used when the request comes from Cloudflare's published ranges. Sites behind another proxy add its ranges with the new `ace_nudge_trusted_proxies` filter, or restore the real address with the web server (`mod_remoteip`).
+- Fixed: `/orders` could be tried repeatedly and an order with no key matched an empty key. It is now rate limited and an empty key never matches.
+- Fixed: a selection list reminder could carry any address, including another site's. The address must now be on this site.
+- Fixed: a browser could grow the reading history without limit. Only the latest 100 entries are kept.
+- Fixed: password-protected posts could appear in the public feed, the digest and grouped alerts. They are left out.
+- Fixed: the digest's brand colours and the bell slot's inline script were printed without escaping. Both are now escaped.
+- Fixed: push payloads over the Web Push size limit were sent and refused by the push service. They are now rejected before sending, and sending uses the safe HTTP API.
+- Fixed: two requests at once on a new site could each create a VAPID key pair, orphaning subscriptions made with the first. The first saved pair now wins.
+- Fixed: the admin settings and remove actions checked the nonce before the capability. They now check the capability first.
+
+Cron, time zones and test-mode safety:
+- Fixed: quiet hours, the daily cap and the newsletter schedule used Europe/London or UTC whatever the site's time zone was. They now all use the site time zone, and the newsletter books each next 08:00 itself so it no longer drifts an hour when the clocks change.
+- Fixed: a run that overlapped the next (cron, a slow push service) could send the same alert twice. The live, hourly and newsletter jobs now take a lock that expires if a run dies.
+- Fixed: a failed reminder or price alert was marked as sent and never retried. It is now only marked once it has gone.
+- Fixed: alert lists were cut at 1,024 bytes by MySQL's `GROUP_CONCAT` default, silently dropping some follows from people with long lists. The limit is raised for those queries.
+- Fixed: grouped alerts linked a followed product category or custom term with the post category link. They now use the link for the term's own taxonomy. A post deleted before its alert went no longer causes an error.
+- Fixed: followed games that left the live snapshot were never forgotten. They are removed a day after kick-off.
+- Fixed: cron events stayed booked after the plugin was switched off or deactivated. They are cleared when the mode is `off` and on deactivation.
+
+Front end, privacy and tools:
+- Fixed: a site in a subdirectory could not register the service worker and "Stop alerts" opened the wrong address. The worker now takes its scope from the site address.
+- Fixed: `get_terms()` errors in the category list were not checked.
+- Added: `uninstall.php`. It removes settings, keys, queues and cron events. The subscriber tables and the consent log are only dropped when `ACE_NUDGE_REMOVE_DATA` is defined as true, because the log may be needed as evidence.
+- Changed: the personal data export now includes the subscriber's follows and their consent record, and the erase result says that a hashed consent record is retained.
+- Fixed: WP-CLI help showed raw comment markers for `status`, `test_push` and the class, `suppress` crashed on a missing file and matched addresses case-sensitively. They are tidied.
+- Added: `tests/run.php` (PHP, no WordPress needed) and `tests/price-format.js` (Node), covering the new logic. Run on PHP 8.2 to 8.5.
+
+Generic price and number formatting:
+- Changed: the odds formatter in `assets/notify.js` is now a generic value formatter. The reader's chosen format name is read from the `localStorage` key the new filter `ace_nudge_value_format` names (`storage`, `default`), and the format itself is a function registered with `aceNudge.api.addFormat( name, fn )` or `window.aceNudgeFormats`. Built in are `decimal` and `percent`. The fractional ladder that used to live in the plugin now belongs to the site that needs it, which registers it the same way.
+- Changed: wording in comments and docs that named a particular industry is neutral.
+
 ## 0.7.3
 
 Released 2026-11-24.

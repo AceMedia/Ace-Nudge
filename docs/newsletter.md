@@ -14,7 +14,7 @@ Requests that are not confirmed within 7 days are deleted. The route answers the
 
 ## What is sent
 
-The digest job runs daily, first at 08:00 Europe/London. Daily subscribers get the last day's posts each run, weekly subscribers the last 7 days' posts on Mondays.
+The digest job runs daily, at 08:00 site time, each run booking the next. Daily subscribers get the last day's posts each run, weekly subscribers the last 7 days' posts on Mondays.
 
 - Sections are the site's top categories: up to 8 top-level terms by post count, with same-named terms merged and "Uncategorised" left out. Change them with `ace_nudge_top_categories`.
 - A subscriber who chose categories gets only those sections.

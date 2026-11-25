@@ -24,12 +24,9 @@ class Ace_Nudge_Dispatch {
 			return $s;
 		} );
 		add_action( 'init', array( __CLASS__, 'schedule' ) );
-		add_action( self::LIVE_HOOK, array( __CLASS__, 'fixtures_tick' ) );
-		add_action( self::LIVE_HOOK, array( __CLASS__, 'slips_tick' ) );
-		add_action( self::LIVE_HOOK, array( __CLASS__, 'slip_prices_tick' ) );
-		add_action( self::BATCH_HOOK, array( __CLASS__, 'tips_tick' ) );
-		add_action( self::BATCH_HOOK, array( __CLASS__, 'category_batch' ) );
-		add_action( self::MAIL_HOOK, array( __CLASS__, 'digest' ) );
+		add_action( self::LIVE_HOOK, array( __CLASS__, 'run_live' ) );
+		add_action( self::BATCH_HOOK, array( __CLASS__, 'run_batch' ) );
+		add_action( self::MAIL_HOOK, array( __CLASS__, 'run_digest' ) );
 		add_action( 'post_updated', array( __CLASS__, 'note_update' ), 10, 3 );
 		add_action( 'woocommerce_before_product_object_save', array( __CLASS__, 'note_product_change' ) );
 	}
@@ -37,10 +34,84 @@ class Ace_Nudge_Dispatch {
 	public static function schedule() {
 		if ( ! wp_next_scheduled( self::LIVE_HOOK ) ) { wp_schedule_event( time() + 60, 'ace_nudge_minute', self::LIVE_HOOK ); }
 		if ( ! wp_next_scheduled( self::BATCH_HOOK ) ) { wp_schedule_event( time() + 300, 'hourly', self::BATCH_HOOK ); }
-		if ( ! wp_next_scheduled( self::MAIL_HOOK ) ) {
-			$next = new DateTimeImmutable( 'tomorrow 08:00', new DateTimeZone( 'Europe/London' ) );
-			wp_schedule_event( $next->getTimestamp(), 'daily', self::MAIL_HOOK );
+		if ( ! wp_next_scheduled( self::MAIL_HOOK ) ) { self::schedule_digest(); }
+	}
+
+	/**
+	 * The digest goes at 08:00 site time. A daily interval drifts an hour when the clocks change, so each
+	 * run books the next 08:00 itself instead of repeating every 86,400 seconds.
+	 */
+	public static function schedule_digest() {
+		wp_schedule_single_event( ( new DateTimeImmutable( 'tomorrow 08:00', wp_timezone() ) )->getTimestamp(), self::MAIL_HOOK );
+	}
+
+	/** Every event this plugin books, for deactivation and for a site that switches NUDGE off. */
+	public static function unschedule() {
+		foreach ( array( self::LIVE_HOOK, self::BATCH_HOOK, self::MAIL_HOOK ) as $hook ) {
+			wp_clear_scheduled_hook( $hook );
 		}
+	}
+
+	/**
+	 * Cron can start the next run while a slow one is still sending, and both would send the same alert.
+	 * add_option fails when the row exists, which makes it a lock that works without an object cache.
+	 */
+	private static function lock( $name, $ttl = 600 ) {
+		$key = 'ace_nudge_lock_' . $name;
+		if ( add_option( $key, time() + $ttl, '', false ) ) {
+			return true;
+		}
+		wp_cache_delete( $key, 'options' );
+		if ( (int) get_option( $key ) < time() ) {
+			delete_option( $key );
+			return (bool) add_option( $key, time() + $ttl, '', false );
+		}
+		return false;
+	}
+
+	private static function unlock( $name ) {
+		delete_option( 'ace_nudge_lock_' . $name );
+	}
+
+	public static function run_live() {
+		if ( self::lock( 'live' ) ) {
+			try {
+				self::fixtures_tick();
+				self::slips_tick();
+				self::slip_prices_tick();
+			} finally {
+				self::unlock( 'live' );
+			}
+		}
+	}
+
+	public static function run_batch() {
+		if ( self::lock( 'batch', 1800 ) ) {
+			try {
+				self::tips_tick();
+				self::category_batch();
+			} finally {
+				self::unlock( 'batch' );
+			}
+		}
+	}
+
+	public static function run_digest() {
+		if ( self::lock( 'digest', 3600 ) ) {
+			try {
+				self::digest();
+			} finally {
+				self::unlock( 'digest' );
+				// Replace whatever the next run was booked as (an older install repeats daily) with the next 08:00.
+				wp_clear_scheduled_hook( self::MAIL_HOOK );
+				self::schedule_digest();
+			}
+		}
+	}
+
+	/** The site's day, as the daily cap counts it (it used to follow UTC while quiet hours followed the clock). */
+	public static function today() {
+		return ( new DateTimeImmutable( 'now', wp_timezone() ) )->format( 'Y-m-d' );
 	}
 
 	/**
@@ -98,7 +169,7 @@ class Ace_Nudge_Dispatch {
 		$rows    = $wpdb->get_results( "SELECT f.id AS follow_id, f.meta, s.*, (SELECT 1 FROM $follows o WHERE o.subscriber_id = s.id AND o.type = 'site' AND o.object_id = 'slipremind' LIMIT 1) AS wants_reminder
 			FROM $follows f JOIN $subs s ON s.id = f.subscriber_id WHERE f.type = 'slip' AND s.channel = 'push' AND s.status = 'active'" );
 		$now     = time();
-		$today   = gmdate( 'Y-m-d' );
+		$today   = self::today();
 		$quiet   = self::quiet_now();
 		foreach ( $rows as $row ) {
 			$meta = json_decode( (string) $row->meta, true );
@@ -127,10 +198,11 @@ class Ace_Nudge_Dispatch {
 				}
 			}
 			$when = $pick && ! empty( $pick['event'] ) ? $pick['event'] . ' starts in ' . max( 1, (int) ceil( ( $first - $now ) / MINUTE_IN_SECONDS ) ) . ' minutes' : 'The first event on your slip starts soon';
-			$sent = self::deliver( $row, array( 'title' => self::slip_title(), 'body' => $when . '. Your slip has ' . $what . '.', 'url' => $meta['url'], 'tag' => 'slip' ) );
-			$meta['kick_sent'] = $now;
-			$wpdb->update( $follows, array( 'meta' => wp_json_encode( $meta ) ), array( 'id' => $row->follow_id ), array( '%s' ), array( '%d' ) );
+			$sent = self::deliver( $row, array( 'title' => self::slip_title(), 'body' => $when . '. Your slip has ' . $what . '.', 'url' => $meta['url'] ?? home_url( '/' ), 'tag' => 'slip' ) );
+			// Only a reminder that went is marked sent, so a failed one is tried again on the next minute while the window lasts.
 			if ( $sent ) {
+				$meta['kick_sent'] = $now;
+				$wpdb->update( $follows, array( 'meta' => wp_json_encode( $meta ) ), array( 'id' => $row->follow_id ), array( '%s' ), array( '%d' ) );
 				$count = $row->sent_day === $today ? (int) $row->sent_count : 0;
 				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $count + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $row->id ) );
 			}
@@ -153,7 +225,7 @@ class Ace_Nudge_Dispatch {
 		$rows    = $wpdb->get_results( "SELECT f.id AS follow_id, f.meta, s.* FROM $follows f JOIN $subs s ON s.id = f.subscriber_id
 			JOIN $follows o ON o.subscriber_id = s.id AND o.type = 'site' AND o.object_id = 'slipprices'
 			WHERE f.type = 'slip' AND s.channel = 'push' AND s.status = 'active'" );
-		$today   = gmdate( 'Y-m-d' );
+		$today   = self::today();
 		foreach ( $rows as $row ) {
 			$meta  = json_decode( (string) $row->meta, true );
 			$picks = is_array( $meta ) ? array_filter( (array) ( $meta['picks'] ?? array() ), fn( $p ) => ! empty( $p['market'] ) && ! empty( $p['sel'] ) ) : array();
@@ -180,10 +252,11 @@ class Ace_Nudge_Dispatch {
 			if ( ! $lines ) {
 				continue;
 			}
-			$meta['told'] = $told;
-			$wpdb->update( $follows, array( 'meta' => wp_json_encode( $meta ) ), array( 'id' => $row->follow_id ), array( '%s' ), array( '%d' ) );
 			$body = $lines[0] . ( count( $lines ) > 1 ? ' (+' . ( count( $lines ) - 1 ) . ' more)' : '' );
 			if ( self::deliver( $row, array( 'title' => self::slip_title(), 'body' => $body, 'url' => $meta['url'] ?? home_url( '/' ), 'tag' => 'slip-prices' ) ) ) {
+				// What was told is only remembered once it has gone, so a failed alert is tried again.
+				$meta['told'] = $told;
+				$wpdb->update( $follows, array( 'meta' => wp_json_encode( $meta ) ), array( 'id' => $row->follow_id ), array( '%s' ), array( '%d' ) );
 				$sent = $row->sent_day === $today ? (int) $row->sent_count : 0;
 				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $sent + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $row->id ) );
 			}
@@ -225,7 +298,7 @@ class Ace_Nudge_Dispatch {
 		$since = (int) get_option( 'ace_nudge_tips_since', time() - HOUR_IN_SECONDS );
 		update_option( 'ace_nudge_tips_since', time(), false );
 		$posts = get_posts( array(
-			'post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => 30, 'no_found_rows' => true,
+			'post_type' => 'post', 'post_status' => 'publish', 'has_password' => false, 'posts_per_page' => 30, 'no_found_rows' => true,
 			'date_query' => array( array( 'after' => gmdate( 'Y-m-d H:i:s', $since ), 'column' => 'post_date_gmt' ) ),
 		) );
 		$found = array();
@@ -240,9 +313,10 @@ class Ace_Nudge_Dispatch {
 		}
 		$follows = Ace_Nudge_Store::t( 'follows' );
 		$subs    = Ace_Nudge_Store::t( 'subscribers' );
+		self::wide_group_concat();
 		$rows    = $wpdb->get_results( "SELECT s.*, GROUP_CONCAT(CONCAT(f.type, ':', f.object_id)) AS wants FROM $subs s JOIN $follows f ON f.subscriber_id = s.id
 			WHERE s.channel = 'push' AND s.status = 'active' AND f.type IN ('category','site') GROUP BY s.id HAVING FIND_IN_SET('site:tips', wants)" );
-		$today   = gmdate( 'Y-m-d' );
+		$today   = self::today();
 		foreach ( $rows as $sub ) {
 			$sent = $sub->sent_day === $today ? (int) $sub->sent_count : 0;
 			if ( $sent >= (int) Ace_Nudge_Settings::get( 'daily_cap' ) ) {
@@ -261,7 +335,7 @@ class Ace_Nudge_Dispatch {
 				continue;
 			}
 			$tip  = $pick['tip'];
-			$body = trim( $tip['runner'] . ( '' !== (string) $tip['price'] ? ' at ' . $tip['price'] : '' ) . ' in ' . html_entity_decode( get_the_title( $pick['post'] ), ENT_QUOTES ) );
+			$body = trim( (string) ( $tip['runner'] ?? '' ) . ( '' !== (string) ( $tip['price'] ?? '' ) ? ' at ' . $tip['price'] : '' ) . ' in ' . html_entity_decode( get_the_title( $pick['post'] ), ENT_QUOTES ) );
 			$msg  = array( 'title' => 'New tip', 'body' => $body . (string) apply_filters( 'ace_nudge_tip_notice', '' ), 'url' => self::opened( get_permalink( $pick['post'] ), $pick['post']->ID ), 'tag' => 'tip-' . $pick['post']->ID );
 			if ( self::deliver( $sub, $msg ) ) {
 				$wpdb->update( $subs, array( 'sent_day' => $today, 'sent_count' => $sent + 1, 'last_sent_at' => current_time( 'mysql', true ) ), array( 'id' => $sub->id ) );
@@ -286,7 +360,7 @@ class Ace_Nudge_Dispatch {
 		$subs    = Ace_Nudge_Store::t( 'subscribers' );
 		$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT s.* FROM $subs s JOIN $follows f ON f.subscriber_id = s.id
 			WHERE s.channel = 'push' AND s.status = 'active' AND f.type = 'site' AND f.object_id = %s", $id ) );
-		$today   = gmdate( 'Y-m-d' );
+		$today   = self::today();
 		foreach ( $rows as $sub ) {
 			$sent = $sub->sent_day === $today ? (int) $sub->sent_count : 0;
 			if ( $sent >= (int) Ace_Nudge_Settings::get( 'daily_cap' ) ) {
@@ -299,12 +373,15 @@ class Ace_Nudge_Dispatch {
 		return true;
 	}
 
+	/** MySQL cuts GROUP_CONCAT at 1,024 bytes by default, which silently dropped the follows of anyone with a long list. */
+	private static function wide_group_concat() {
+		global $wpdb;
+		$wpdb->query( 'SET SESSION group_concat_max_len = 1048576' );
+	}
+
 	/** Whether it is within the quiet hours (site time) that grouped alerts wait out. */
-	private static function quiet_now() {
-		$hour  = (int) ( new DateTimeImmutable( 'now', new DateTimeZone( 'Europe/London' ) ) )->format( 'G' );
-		$start = (int) Ace_Nudge_Settings::get( 'quiet_start' );
-		$end   = (int) Ace_Nudge_Settings::get( 'quiet_end' );
-		return $start !== $end && ( $start > $end ? ( $hour >= $start || $hour < $end ) : ( $hour >= $start && $hour < $end ) );
+	public static function quiet_now() {
+		return Ace_Nudge_Util::is_quiet( ( new DateTimeImmutable( 'now', wp_timezone() ) )->format( 'G' ), Ace_Nudge_Settings::get( 'quiet_start' ), Ace_Nudge_Settings::get( 'quiet_end' ) );
 	}
 
 	/** Compare each followed game with what was last seen and alert on real changes. */
@@ -322,6 +399,11 @@ class Ace_Nudge_Dispatch {
 			$item = self::scoreboard_item( (array) ( $meta['hubs'] ?? array() ), $fid );
 			$seen = self::send_reminder( $fid, (array) $meta, $item, $seen );
 			if ( ! $item ) {
+				// A game that has left the snapshot a day after kick-off is not coming back: forget its follows.
+				if ( ! empty( $meta['kickoff'] ) && (int) $meta['kickoff'] < time() - DAY_IN_SECONDS ) {
+					$wpdb->delete( $follows, array( 'type' => 'fixture', 'object_id' => $fid ), array( '%s', '%s' ) );
+					unset( $seen[ $fid ] );
+				}
 				continue;
 			}
 			$now     = array( 'state' => (string) ( $item['state'] ?? '' ), 'h' => (int) ( $item['home_score'] ?? 0 ), 'a' => (int) ( $item['away_score'] ?? 0 ) );
@@ -458,10 +540,7 @@ class Ace_Nudge_Dispatch {
 	/** One message per person per run, whatever was published or changed, and nothing overnight. */
 	public static function category_batch() {
 		global $wpdb;
-		$hour = (int) ( new DateTimeImmutable( 'now', new DateTimeZone( 'Europe/London' ) ) )->format( 'G' );
-		$start = (int) Ace_Nudge_Settings::get( 'quiet_start' );
-		$end   = (int) Ace_Nudge_Settings::get( 'quiet_end' );
-		if ( $start !== $end && ( $start > $end ? ( $hour >= $start || $hour < $end ) : ( $hour >= $start && $hour < $end ) ) ) {
+		if ( self::quiet_now() ) {
 			return;
 		}
 		$follows = Ace_Nudge_Store::t( 'follows' );
@@ -475,7 +554,7 @@ class Ace_Nudge_Dispatch {
 		delete_option( 'ace_nudge_updated' );
 		do_action( 'ace_nudge_updates_ready', $updated );
 		$posts = get_posts( array(
-			'post_type' => Ace_Nudge_Settings::post_types(), 'post_status' => 'publish', 'posts_per_page' => 50, 'no_found_rows' => true,
+			'post_type' => Ace_Nudge_Settings::post_types(), 'post_status' => 'publish', 'has_password' => false, 'posts_per_page' => 50, 'no_found_rows' => true,
 			'date_query' => array( array( 'after' => gmdate( 'Y-m-d H:i:s', $since ), 'column' => 'post_date_gmt' ) ),
 		) );
 		$fresh  = array();
@@ -493,7 +572,8 @@ class Ace_Nudge_Dispatch {
 		if ( ! $fresh && ! $updated ) {
 			return;
 		}
-		$today = gmdate( 'Y-m-d' );
+		$today = self::today();
+		self::wide_group_concat();
 		$rows  = $wpdb->get_results( "SELECT s.*, GROUP_CONCAT(CONCAT(f.type, ':', f.object_id)) AS wants FROM $subs s JOIN $follows f ON f.subscriber_id = s.id WHERE s.channel = 'push' AND s.status = 'active' AND f.type IN ('category','ptype','site','post','read') GROUP BY s.id" );
 		foreach ( $rows as $sub ) {
 			$sent = $sub->sent_day === $today ? (int) $sub->sent_count : 0;
@@ -529,7 +609,8 @@ class Ace_Nudge_Dispatch {
 			[ $type, $id ] = array_pad( explode( ':', $want, 2 ), 2, '' );
 			if ( 'category' === $type && ! empty( $by_cat[ $id ] ) ) {
 				$new += $by_cat[ $id ];
-				$link = get_category_link( (int) $id );
+				$term = get_term_link( (int) $id );
+				$link = is_wp_error( $term ) ? $link : $term;
 			}
 			if ( 'ptype' === $type && ! empty( $by_cat[ 'ptype:' . $id ] ) ) {
 				$new += $by_cat[ 'ptype:' . $id ];
@@ -547,6 +628,9 @@ class Ace_Nudge_Dispatch {
 		}
 		if ( 1 === $total ) {
 			$post = $new ? reset( $new ) : get_post( (int) array_key_first( $changes ) );
+			if ( ! $post ) {
+				return null;
+			}
 			return array(
 				'title' => $new ? $name : ( array( 'stock' => 'Back in stock', 'price' => 'Price drop' )[ reset( $changes ) ] ?? 'Updated' ),
 				'body'  => html_entity_decode( get_the_title( $post ) ),
@@ -578,6 +662,9 @@ class Ace_Nudge_Dispatch {
 		$weekly_day = '1' === wp_date( 'N' );
 		// Unconfirmed requests are not kept.
 		$wpdb->query( $wpdb->prepare( "DELETE FROM $subs WHERE channel = 'email' AND status = 'pending' AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 7 * DAY_IN_SECONDS ) ) );
+		// Newsletter requests from active customers that were never confirmed, and follows left without a subscriber.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM $follows WHERE type = 'digestreq' AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 7 * DAY_IN_SECONDS ) ) );
+		$wpdb->query( "DELETE f FROM $follows f LEFT JOIN $subs s ON s.id = f.subscriber_id WHERE s.id IS NULL" );
 		$rows = $wpdb->get_results( "SELECT * FROM $subs WHERE channel = 'email' AND status = 'active'" );
 		foreach ( $rows as $sub ) {
 			if ( Ace_Nudge_Store::is_suppressed( $sub->email ) ) {
@@ -609,7 +696,7 @@ class Ace_Nudge_Dispatch {
 				continue;
 			}
 			$posts = get_posts( array(
-				'post_type' => Ace_Nudge_Settings::post_types(), 'post_status' => 'publish', 'posts_per_page' => 8, 'no_found_rows' => true,
+				'post_type' => Ace_Nudge_Settings::post_types(), 'post_status' => 'publish', 'has_password' => false, 'posts_per_page' => 8, 'no_found_rows' => true,
 				'tax_query' => array( array( 'taxonomy' => $top['taxonomy'], 'terms' => $top['ids'] ) ),
 				'date_query' => array( array( 'after' => gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ), 'column' => 'post_date_gmt' ) ),
 			) );
@@ -633,8 +720,9 @@ class Ace_Nudge_Dispatch {
 	 */
 	public static function render_digest( array $sections, $unsub ) {
 		$brand  = Ace_Nudge_Settings::brand();
-		$green  = $brand['primary'];
-		$bright = $brand['accent'];
+		$green  = esc_attr( $brand['primary'] );
+		$bright = esc_attr( $brand['accent'] );
+		$page   = esc_attr( $brand['page'] );
 		$name   = esc_html( $brand['name'] );
 		$font   = "Arial, Helvetica, sans-serif";
 		$logo   = $brand['logo'];
@@ -658,7 +746,7 @@ class Ace_Nudge_Dispatch {
 			? '<img src="' . esc_url( $logo ) . '" height="40" alt="' . $name . '" style="display:block;height:40px;width:auto;border:0;color:#fff;font:700 20px ' . $font . '">'
 			: '<span style="color:#fff;font:700 22px ' . $font . ';text-decoration:none">' . $name . '</span>';
 		return '<!doctype html><html lang="' . esc_attr( get_bloginfo( 'language' ) ) . '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . $name . '</title></head>'
-			. '<body style="margin:0;padding:0;background:' . $brand['page'] . '"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' . $brand['page'] . '"><tr><td align="center" style="padding:16px 8px">'
+			. '<body style="margin:0;padding:0;background:' . $page . '"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' . $page . '"><tr><td align="center" style="padding:16px 8px">'
 			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;overflow:hidden">'
 			. '<tr><td style="padding:20px 24px;background:' . $green . '"><a href="' . esc_url( home_url( '/' ) ) . '" style="text-decoration:none">' . $masthead . '</a></td></tr>'
 			. $body

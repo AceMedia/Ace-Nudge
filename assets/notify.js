@@ -176,7 +176,7 @@
 		const hadToken = !!store.get('token');
 		const permission = await Notification.requestPermission();
 		if (permission !== 'granted') throw { message: 'Notifications are blocked in your browser settings.' };
-		const reg = await navigator.serviceWorker.register(cfg.sw, { scope: '/' });
+		const reg = await navigator.serviceWorker.register(cfg.sw, { scope: cfg.scope || '/' });
 		await navigator.serviceWorker.ready;
 		const key = Uint8Array.from(atob(cfg.vapid.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
 		const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
@@ -301,7 +301,7 @@
 			if (!consent.input.checked) return fail(error, { message: 'Please switch this on to sign up.' });
 			try {
 				const categories = cats.rows.filter((r) => r.input.checked).flatMap((r) => r.c.ids);
-				await post('subscribe', { channel: 'email', consent: true, age_confirmed: true, email: email.input.value, website: trap.value, frequency: frequency.querySelector('input:checked').value, categories });
+				await post('subscribe', { channel: 'email', consent: true, age_confirmed: store.get('age') === 'yes' || !cfg.minAge, email: email.input.value, website: trap.value, frequency: frequency.querySelector('input:checked').value, categories });
 				show(heading('Check your inbox'), lead('Confirm using the link we\'ve sent and your newsletter will start.'), actions(closeBtn('Close')));
 			} catch (err) { fail(error, err); }
 		} } },
@@ -456,7 +456,7 @@
 		return b;
 	};
 
-	// Other scripts on the page (the bet calculator's slip) can follow through the same flow:
+	// Other scripts on the page (a site's selection list) can follow through the same flow:
 	// age check, notification permission, then the follow. `days` on a target makes it lapse.
 	// unfollow takes a target or an entry from follows() (every key it carries), or a type and an id.
 	const unfollowKeys = async (keys) => {
@@ -503,7 +503,7 @@
 	let unread = parseInt(store.get('unread') || '0', 10) || 0;
 	const REASONS = { new: 'New', updated: 'Updated', tips: 'Tips updated', prices: 'Prices changed', result: 'Result in' };
 
-	// Sports a reader reads, learnt on this device only and only while "Recommend bets from sports I
+	// Sports a reader reads, learnt on this device only and only while "Recommend items from topics I
 	// read" is on (it is unless they switch it off, which also forgets what was learnt). Each term the
 	// reader has read is kept with when and how often, for 60 days.
 	const recoOn = () => store.get('reco') !== 'off';
@@ -535,16 +535,27 @@
 	const slipBase = loadMap('slipbase');
 	let slipState = null;
 	let slipAsked = '';
-	const oddsFormat = () => { try { return localStorage.getItem('aceOddsFormat') || 'fractional'; } catch (e) { return 'fractional'; } };
-	const FRACS = [[1, 10], [1, 8], [1, 6], [1, 5], [2, 9], [1, 4], [2, 7], [3, 10], [1, 3], [4, 11], [2, 5], [4, 9], [1, 2], [8, 15], [4, 7], [8, 13], [4, 6], [8, 11], [4, 5], [5, 6], [10, 11], [1, 1], [11, 10], [6, 5], [5, 4], [11, 8], [6, 4], [13, 8], [7, 4], [15, 8], [2, 1], [9, 4], [5, 2], [11, 4], [3, 1], [10, 3], [7, 2], [4, 1], [9, 2], [5, 1], [11, 2], [6, 1], [13, 2], [7, 1], [15, 2], [8, 1], [9, 1], [10, 1], [11, 1], [12, 1], [14, 1], [16, 1], [18, 1], [20, 1], [25, 1], [33, 1], [40, 1], [50, 1], [66, 1], [100, 1]];
-	const price = (dec, frac) => {
-		const f = oddsFormat();
-		if (!(dec > 1)) return frac || '';
-		if (f === 'decimal') return dec.toFixed(2);
-		if (f === 'probability') return Math.round(100 / dec) + '%';
-		if (frac) return frac === '1/1' ? 'Evens' : frac;
-		const best = FRACS.reduce((a, b) => (Math.abs(b[0] / b[1] + 1 - dec) < Math.abs(a[0] / a[1] + 1 - dec) ? b : a));
-		return best[0] === best[1] ? 'Evens' : best[0] + '/' + best[1];
+	// Prices and other numbers are written the way the site says (cfg.format: { storage, default }).
+	// 'storage' names the localStorage key where the reader's choice is kept and 'default' what is used
+	// without one. A format is a function (value, alt) => text, added with api.addFormat(name, fn) or
+	// by setting window.aceNudgeFormats[name] before or after this script loads; 'alt' is the text the
+	// server already has for the value. Built in: 'decimal' (two places) and 'percent' (one over the value).
+	const builtIn = {
+		decimal: (n) => n.toFixed(2),
+		percent: (n) => Math.round(100 / n) + '%',
+	};
+	const formatName = () => {
+		const c = cfg.format || {};
+		try { return (c.storage && localStorage.getItem(c.storage)) || c.default || 'decimal'; } catch (e) { return c.default || 'decimal'; }
+	};
+	const price = (n, alt) => {
+		if (!(n > 0)) return alt || '';
+		const name = formatName();
+		const fn = (window.aceNudgeFormats && window.aceNudgeFormats[name]) || builtIn[name];
+		if (typeof fn === 'function') {
+			try { const out = fn(n, alt); if (out !== null && out !== undefined) return String(out); } catch (e) {}
+		}
+		return alt || n.toFixed(2);
 	};
 	const loadSlip = () => {
 		const picks = slipPicks().filter((p) => p.market_id && p.selection_id && !p.example);
@@ -704,7 +715,7 @@
 
 	// A small bubble from the bell names the newest unread item, once per item. It overlays the page
 	// (nothing moves), leaves on its own after six seconds unless pointed at or focused, and never
-	// shows inside the app pages a site names (the bet calculator, the map).
+	// shows inside the app pages a site names (a calculator, a map).
 	// An arcade sound as a notification comes in, made in the browser (no sound file to load). Site
 	// notifications get a "ding-ding", two bright bell notes like a arcade game paying out; selection list
 	// ones get a quick three-note coin run that ends on a ring, so the two are told apart by ear. Each
@@ -983,7 +994,7 @@
 		notifications: () => ({ items: notes.slice(), unread, loaded: !!feed || !follows.length }),
 		unread: () => unread,
 		markRead: (id) => markRead(id),
-		// Bets recommended from sports this reader reads (kept on this device): on unless switched off.
+		// Items recommended from topics this reader reads (kept on this device): on unless switched off.
 		recommending: () => recoOn(),
 		setRecommending: (on) => setReco(!!on),
 		// The ding as a notification comes in: on unless switched off, kept in this browser. Switching
@@ -991,6 +1002,9 @@
 		sound: () => soundOn(),
 		setSound: (on) => { store.set('sound', on ? 'on' : 'off'); if (on) ding('site', 0); },
 		hasSlip: () => !!slipCfg,
+		// Register how a value is written: addFormat('name', (value, alt) => text). See cfg.format.
+		addFormat: (name, fn) => { if (typeof name === 'string' && typeof fn === 'function') { window.aceNudgeFormats = window.aceNudgeFormats || {}; window.aceNudgeFormats[name] = fn; } },
+		format: (value, alt) => price(Number(value), alt),
 		markAllRead: () => markAllRead(),
 		dismiss: (id) => dismissNote(id),
 		// What the settings panel needs to run every alert control in its own tab. The rules (age
@@ -1030,7 +1044,7 @@
 			for (const id of c.ids) await setFollow('category', id, want, 'category:' + id);
 			paint();
 		},
-		newsletter: ({ email, frequency, categories, website }) => post('subscribe', { channel: 'email', consent: true, age_confirmed: true, email, website: website || '', frequency: frequency === 'weekly' ? 'weekly' : 'daily', categories: categories || [] }),
+		newsletter: ({ email, frequency, categories, website }) => post('subscribe', { channel: 'email', consent: true, age_confirmed: store.get('age') === 'yes' || !cfg.minAge, email, website: website || '', frequency: frequency === 'weekly' ? 'weekly' : 'daily', categories: categories || [] }),
 		open: (section) => {
 			if (section === 'newsletter') return ageStep(newsletterStep);
 			if (section === 'push' || (section === 'interests' && !marketingOn())) return ageStep(() => pushStep(null));

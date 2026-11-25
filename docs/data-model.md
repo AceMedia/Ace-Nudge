@@ -16,7 +16,7 @@ Four tables, named with the WordPress table prefix followed by `ace_nudge_`. The
 | `auth` | varchar(60), null | Push channel only: the browser's auth secret |
 | `created_at` | datetime | |
 | `last_sent_at` | datetime, null | Last grouped push or newsletter |
-| `sent_day` | char(10), null | The UTC day `sent_count` belongs to |
+| `sent_day` | char(10), null | The site-time day `sent_count` belongs to |
 | `sent_count` | smallint unsigned | Grouped pushes sent on `sent_day`, for the daily cap |
 
 Keys: primary `id`, unique `endpoint_hash`, index `channel_status (channel, status)`.
@@ -43,6 +43,7 @@ Keys: primary `id`, unique `one_follow (subscriber_id, type, object_id)`, index 
 | `read` | Post id | A post this browser opened, kept only while `site:reads` is on, for 30 days |
 | `fixture` | Fixture id | A scheduled live event the visitor can follow, with a start time, states and a score. `meta` holds its label, post, url, start time and the groups it belongs to. Removed when the event ends |
 | `digest` | `daily` or `weekly` | Newsletter frequency |
+| `digestreq` | `daily` or `weekly` | A newsletter request from an already active address (a customer who opted into product emails). Held, with the chosen categories in `meta`, until the confirmation link is used, then turned into `digest` and `category` follows. Removed after 7 days |
 | `order` | Order id | Push updates for one WooCommerce order. Removed when the order is completed, refunded or cancelled |
 | `customer` | User id | Push updates for all of a signed-in customer's orders |
 | `wc` | `product_updates` | Back in stock and price drop emails for products bought |

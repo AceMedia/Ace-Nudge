@@ -34,8 +34,8 @@ Without that, live event alerts and selection list reminders arrive late on quie
 
 | Limit | Value |
 |---|---|
-| Grouped pushes per browser per day | `daily_cap` setting, default 3. Counted per UTC day |
-| Quiet hours | `quiet_start` to `quiet_end`, default 21:00 to 08:00. Evaluated in the Europe/London time zone |
+| Grouped pushes per browser per day | `daily_cap` setting, default 3. Counted per day in the site time zone |
+| Quiet hours | `quiet_start` to `quiet_end`, default 21:00 to 08:00. Evaluated in the site's time zone |
 | Grouped alerts | One message per person per hourly run, whatever was published or changed |
 | Follows per subscription | 30 |
 | Weekly newsletter | Mondays only |
@@ -54,7 +54,7 @@ Live event alerts and WooCommerce order updates are service messages: they skip 
 - The service worker is served by WordPress at `/?ace_nudge_sw=1`. Make sure a page cache or CDN does not cache that address for long, and does not strip the query string.
 - If a full-page cache keys on query strings, leave `ref` out of the key: push links carry `?ref=nudge-ID`.
 - Exclude `/wp-json/ace-nudge/v1/` POST routes from any cache. `GET /feed` may be cached for up to a minute.
-- Behind a CDN or proxy, the rate limiter reads the visitor address from `CF-Connecting-IP` when present, otherwise `REMOTE_ADDR`. Make sure one of them is the real visitor address.
+- The rate limiter uses `REMOTE_ADDR`, and believes `CF-Connecting-IP` only when the request comes from Cloudflare's published ranges. Behind another proxy, add its ranges with the `ace_nudge_trusted_proxies` filter or restore the real address in the web server (`mod_remoteip`).
 - After deploying a new version, no migration step is needed: the table check runs on `init`.
 
 ## Known limits
@@ -63,7 +63,7 @@ Live event alerts and WooCommerce order updates are service messages: they skip 
 - No bounce or complaint intake. Hard bounces must be added with `suppress`.
 - No manual campaigns, segments or subscriber export.
 - Changing the WordPress auth salt breaks every link already emailed and every browser token.
-- Quiet hours and the newsletter's first run use the Europe/London time zone, not the site's.
-- Deactivating the plugin leaves its tables, options and scheduled events in place. There is no uninstall routine.
+- Tokens are the subscription id plus an HMAC, not bound to the subscriber's endpoint. If the database hands an id out again (MySQL before 8.0 can after a restart), an old link for a deleted subscriber would match the new one.
+- Deactivating clears the scheduled events and leaves data in place. Deleting the plugin removes options and keys, and drops the subscriber tables and consent log only if `ACE_NUDGE_REMOVE_DATA` is defined as true.
 
 See also [Troubleshooting](troubleshooting.md).

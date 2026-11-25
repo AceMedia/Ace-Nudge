@@ -4,7 +4,7 @@ Tags: notifications, web push, newsletter, follow, woocommerce
 Requires at least: 6.5
 Tested up to: 6.8
 Requires PHP: 8.1
-Stable tag: 0.7.3
+Stable tag: 0.7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -61,6 +61,9 @@ When the site has a settings panel (window.aceSettings with its Alerts tab), the
 Each change also fires ace-nudge:change on document with { status, follows }. In test mode without a preview, or after a failed age check, api.available is false and status().reason says why.
 
 == Changelog ==
+
+= 0.7.4 =
+Bug-fix release: double opt-in and suppression races, rate limiter header trust, site time zone for quiet hours and the newsletter, cron locking, retries for failed alerts, subdirectory installs, uninstall routine, richer data export, and a generic, filter-driven value formatter. See the changelog in the repository for the full list.
 
 = 0.7.3 =
 Nothing site-specific is left in the plugin: three new filters and bubble custom properties replace it. Documentation, wiki and illustrations updated.

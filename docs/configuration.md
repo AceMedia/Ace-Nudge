@@ -16,6 +16,7 @@ define( 'ACE_NUDGE_SHOW_ALL', false );
 | `ACE_NUDGE_MODE` | `off` | `off`, `test` or `on`. Any other value means `off` |
 | `ACE_NUDGE_TEST_EMAILS` | none | Addresses that may sign up for and receive the newsletter outside `on` mode. Compared without regard to case |
 | `ACE_NUDGE_TEST_PUSH` | none | Subscriber ids (from the Subscribers tab) that may receive push in `test` mode |
+| `ACE_NUDGE_REMOVE_DATA` | `false` | When defined as true, deleting the plugin also drops the subscriber, follow, consent log and suppression tables. Leave it off if the consent log may be needed as evidence |
 | `ACE_NUDGE_SHOW_ALL` | `false` | In `test` mode, shows the front end to every visitor without the preview address, and keeps past live events followable. Sending stays limited to the test lists |
 
 ### Modes
@@ -44,7 +45,7 @@ The admin screens, WP-CLI commands and the personal data exporter and eraser wor
 | `order_statuses` | Order updates on devices | `processing`, `completed`, `refunded`, `cancelled` | WooCommerce order statuses | Statuses that send a push. Shown with WooCommerce only |
 | `wc_optional_emails` | Emails customers can switch off | `customer_note` | Non-essential customer emails | Shown with WooCommerce only |
 
-Quiet hours are evaluated in the Europe/London time zone.
+Quiet hours are evaluated in the site's time zone (Settings, General).
 
 Site code can change the defaults, which apply until the settings are first saved:
 

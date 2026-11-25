@@ -196,4 +196,5 @@ add_filter( 'ace_nudge_onboarding', function ( $steps ) {
 - Browsers allow service workers on `https` and on `localhost`.
 - `wp ace-nudge preview` renders the newsletter. `wp cron event run ace_nudge_hourly` runs the grouped batch now.
 - The script keeps its state in `localStorage` under keys starting `aceNudge.`. Clear them to start again as a new visitor.
+- Tests: `php tests/run.php` (no WordPress needed) and `node tests/price-format.js`. Run the PHP one on 8.1 and newer.
 - There is no build step. Edit `assets/notify.js` and reload; assets are versioned by file time.

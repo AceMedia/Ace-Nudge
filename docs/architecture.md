@@ -44,9 +44,9 @@ Front end:
 |---|---|---|
 | `ace_nudge_minute` | Every minute (custom schedule `ace_nudge_minute`) | Live event changes and start reminders, selection list reminders, and every fifth minute selection list price checks |
 | `ace_nudge_hourly` | Hourly | Recommendation alerts, then the grouped push batch for new posts and updates. Also clears reading history older than 30 days and lapsed follows, and fires `ace_nudge_updates_ready` |
-| `ace_nudge_digest` | Daily, first run at 08:00 Europe/London | Newsletter, and removal of unconfirmed requests older than 7 days |
+| `ace_nudge_digest` | Single event at 08:00 site time, booked again by each run | Newsletter, and removal of unconfirmed requests older than 7 days and of follows without a subscriber |
 
-Events are scheduled on `init` when missing, in `test` and `on` modes only. The minute job needs a real system cron calling `wp-cron.php` every minute; see [Operations](operations.md).
+Events are scheduled on `init` when missing, in `test` and `on` modes only, and cleared in `off` mode and on deactivation. Each job takes a lock (an option, `ace_nudge_lock_*`, that expires) so overlapping runs cannot send twice. The minute job needs a real system cron calling `wp-cron.php` every minute; see [Operations](operations.md).
 
 ## Request flow: following from a page
 

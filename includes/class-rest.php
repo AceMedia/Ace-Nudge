@@ -8,6 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class Ace_Nudge_Rest {
 	const MAX_FOLLOWS = 30;
+	const MAX_READS   = 100;
 
 	public static function boot() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
@@ -31,7 +32,9 @@ class Ace_Nudge_Rest {
 	}
 
 	private static function limited( $bucket, $max ) {
-		$key = 'ace_nudge_rl_' . md5( $bucket . '|' . ( $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '' ) . '|' . wp_salt( 'nonce' ) );
+		// The proxy header is only believed from a trusted proxy (Cloudflare's ranges by default; ace_nudge_trusted_proxies).
+		$ip  = Ace_Nudge_Util::client_ip( $_SERVER, array_values( (array) apply_filters( 'ace_nudge_trusted_proxies', Ace_Nudge_Util::CLOUDFLARE ) ) );
+		$key = 'ace_nudge_rl_' . md5( $bucket . '|' . $ip . '|' . wp_salt( 'nonce' ) );
 		$n   = (int) get_transient( $key );
 		if ( $n >= $max ) {
 			return true;
@@ -84,45 +87,64 @@ class Ace_Nudge_Rest {
 		global $wpdb;
 		$done  = array( 'pending' => true );
 		$email = sanitize_email( (string) $r->get_param( 'email' ) );
-		if ( ! is_email( $email ) ) {
+		// The column holds 190 characters; a longer address would fail to save and be sent a link that cannot work.
+		if ( ! is_email( $email ) || strlen( $email ) > 190 ) {
 			return new WP_Error( 'email', 'Please enter a valid email address.', array( 'status' => 400 ) );
 		}
 		if ( Ace_Nudge_Store::is_suppressed( $email ) || ! Ace_Nudge_Dispatch::email_allowed( $email ) ) {
 			return $done;
 		}
-		$hash = Ace_Nudge_Store::email_hash( $email );
-		$row  = $wpdb->get_row( $wpdb->prepare( 'SELECT id, status FROM ' . Ace_Nudge_Store::t( 'subscribers' ) . ' WHERE endpoint_hash = %s', $hash ) );
-		if ( $row && 'active' === $row->status ) {
-			return $done;
+		$s         = Ace_Nudge_Store::t( 'subscribers' );
+		$f         = Ace_Nudge_Store::t( 'follows' );
+		$hash      = Ace_Nudge_Store::email_hash( $email );
+		$frequency = 'weekly' === $r->get_param( 'frequency' ) ? 'weekly' : 'daily';
+		$cats      = array();
+		foreach ( array_slice( (array) $r->get_param( 'categories' ), 0, self::MAX_FOLLOWS ) as $cat ) {
+			$term = get_term( (int) $cat );
+			if ( $term && ! is_wp_error( $term ) && in_array( $term->taxonomy, Ace_Nudge_Settings::taxonomies(), true ) ) {
+				$cats[] = (int) $cat;
+			}
 		}
-		if ( ! $row ) {
-			$wpdb->insert( Ace_Nudge_Store::t( 'subscribers' ), array(
-				'channel' => 'email', 'status' => 'pending', 'email' => $email, 'endpoint_hash' => $hash,
-				'created_at' => current_time( 'mysql', true ),
-			) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT id, status FROM $s WHERE endpoint_hash = %s", $hash ) );
+		if ( $row && 'active' === $row->status ) {
+			if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM $f WHERE subscriber_id = %d AND type = 'digest'", $row->id ) ) ) {
+				return $done;
+			}
+			// Active only for product emails (an opt-in at checkout): the newsletter still needs its own confirmation.
+			$wpdb->delete( $f, array( 'subscriber_id' => $row->id, 'type' => 'digestreq' ), array( '%d', '%s' ) );
+			self::add_follow( (int) $row->id, 'digestreq', $frequency, array( 'cats' => $cats ) );
+			Ace_Nudge_Store::log( $hash, 'email', 'requested', true );
+			$id = (int) $row->id;
+		} elseif ( ! $row ) {
+			// INSERT IGNORE: two requests at once for one address must not leave one of them holding a dead link.
+			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $s (channel, status, email, endpoint_hash, created_at) VALUES ('email', 'pending', %s, %s, %s)", $email, $hash, current_time( 'mysql', true ) ) );
 			$id = (int) $wpdb->insert_id;
-			$frequency = 'weekly' === $r->get_param( 'frequency' ) ? 'weekly' : 'daily';
-			self::add_follow( $id, 'digest', $frequency, array() );
-			foreach ( array_slice( (array) $r->get_param( 'categories' ), 0, self::MAX_FOLLOWS ) as $cat ) {
-				$term = get_term( (int) $cat );
-				if ( $term && ! is_wp_error( $term ) && in_array( $term->taxonomy, Ace_Nudge_Settings::taxonomies(), true ) ) {
-					self::add_follow( $id, 'category', (string) (int) $cat, array() );
+			if ( $id ) {
+				self::add_follow( $id, 'digest', $frequency, array() );
+				foreach ( $cats as $cat ) {
+					self::add_follow( $id, 'category', (string) $cat, array() );
+				}
+				Ace_Nudge_Store::log( $hash, 'email', 'requested', true );
+			} else {
+				$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM $s WHERE endpoint_hash = %s", $hash ) );
+				if ( ! $id ) {
+					return $done;
 				}
 			}
-			Ace_Nudge_Store::log( $hash, 'email', 'requested', true );
 		} else {
 			$id = (int) $row->id;
 		}
-		Ace_Nudge_Dispatch::send_confirmation( $email, Ace_Nudge_Store::token( $id ) );
+		// One confirmation email per address every ten minutes, so this form cannot be used to flood someone's inbox.
+		$throttle = 'ace_nudge_cf_' . substr( $hash, 0, 32 );
+		if ( ! get_transient( $throttle ) ) {
+			set_transient( $throttle, 1, 10 * MINUTE_IN_SECONDS );
+			Ace_Nudge_Dispatch::send_confirmation( $email, Ace_Nudge_Store::token( $id ) );
+		}
 		return $done;
 	}
 
 	private static function add_follow( $id, $type, $object, array $meta ) {
-		global $wpdb;
-		$wpdb->query( $wpdb->prepare(
-			'INSERT IGNORE INTO ' . Ace_Nudge_Store::t( 'follows' ) . ' (subscriber_id, type, object_id, meta, created_at) VALUES (%d, %s, %s, %s, %s)',
-			$id, $type, $object, wp_json_encode( $meta ), current_time( 'mysql', true )
-		) );
+		return Ace_Nudge_Store::add_follow( $id, $type, $object, $meta );
 	}
 
 	/** Resolve what is being followed on the server, so a client can't name anything else. */
@@ -242,7 +264,8 @@ class Ace_Nudge_Rest {
 			'count'      => min( 20, $count ),
 			'type'       => sanitize_text_field( (string) $r->get_param( 'type' ) ),
 			'returns'    => round( (float) $r->get_param( 'returns' ), 2 ),
-			'url'        => esc_url_raw( (string) $r->get_param( 'url' ) ) ?: home_url( '/' ),
+			// A reminder opens this address, so it has to stay on this site.
+			'url'        => wp_validate_redirect( esc_url_raw( (string) $r->get_param( 'url' ) ), home_url( '/' ) ),
 			'picks'      => $picks,
 			'first'      => $starts ? min( $starts ) : 0,
 			'updated_at' => time(),
@@ -313,8 +336,13 @@ class Ace_Nudge_Rest {
 		if ( ! $sub || ! function_exists( 'wc_get_order' ) ) {
 			return new WP_Error( 'orders', 'Could not turn on order updates.', array( 'status' => 400 ) );
 		}
+		if ( self::limited( 'orders', 60 ) ) {
+			return new WP_Error( 'orders', 'Too many requests.', array( 'status' => 429 ) );
+		}
 		$order = wc_get_order( (int) $r->get_param( 'order_id' ) );
-		if ( $order && hash_equals( $order->get_order_key(), (string) $r->get_param( 'order_key' ) ) ) {
+		$given = (string) $r->get_param( 'order_key' );
+		// An order with no key must not match an empty one.
+		if ( $order && '' !== $given && hash_equals( (string) $order->get_order_key(), $given ) ) {
 			self::add_follow( $sub->id, 'order', (string) $order->get_id(), array() );
 		} elseif ( get_current_user_id() ) {
 			self::add_follow( $sub->id, 'customer', (string) get_current_user_id(), array() );
@@ -332,6 +360,8 @@ class Ace_Nudge_Rest {
 		$t    = Ace_Nudge_Store::t( 'follows' );
 		if ( $sub && $post && 'publish' === $post->post_status && $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM $t WHERE subscriber_id = %d AND type = 'site' AND object_id = 'reads'", $sub->id ) ) ) {
 			self::add_follow( $sub->id, 'read', (string) $post->ID, array() );
+			// Only the latest are kept (they also lapse after 30 days), so one browser cannot grow the table without end.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM $t WHERE subscriber_id = %d AND type = 'read' AND id NOT IN ( SELECT id FROM ( SELECT id FROM $t WHERE subscriber_id = %d AND type = 'read' ORDER BY id DESC LIMIT %d ) keep )", $sub->id, $sub->id, self::MAX_READS ) );
 		}
 		return array( 'ok' => true );
 	}

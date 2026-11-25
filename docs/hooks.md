@@ -56,6 +56,9 @@ A `slip` is a list of selections the visitor builds on the site (a saved list, b
 | `ace_nudge_footer_selector` | `string $selector` | "Newsletter" and "Browser alerts" links are inserted after this element |
 | `ace_nudge_bubble_quiet_selector` | `string $selector` | Pages matching this selector never show the notification bubble |
 | `ace_nudge_hold_selector` | `string $selector` | A CSS selector matched against the `<html>` element. The notification bubble and its sound wait while it matches (12 seconds at most), for example while a page intro plays. Default empty |
+| `ace_nudge_value_format` | `array $format` | How prices or other numbers in notifications are written: `{ storage, default }`. `storage` is the `localStorage` key holding the reader's chosen format name, `default` the name used without one. A format is a function `(value, alt) => text` registered with `aceNudge.api.addFormat( name, fn )` or `window.aceNudgeFormats[name]`; `alt` is the text the server supplied for the value. Built in: `decimal` and `percent`. Default empty (decimal) |
+| `ace_nudge_wording_version` | `string $version` | Version stored with each consent log entry, up to 30 characters. Change it when you change `ace_nudge_wording` |
+| `ace_nudge_trusted_proxies` | `array $cidrs` | Proxy ranges whose `CF-Connecting-IP` header the rate limiter believes. Default Cloudflare's published ranges |
 | `ace_nudge_onboarding` | `array $steps` | Steps in the first-visit tour, each `{ id, label, title, text, target, icon }` |
 | `ace_nudge_manifest_url` | `string $url` | Web app manifest, printed as `<link rel="manifest">`. Needed for notifications on iPhone and iPad |
 

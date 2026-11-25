@@ -189,7 +189,7 @@ class Ace_Nudge_Admin {
 		}
 		echo '</td></tr>';
 		printf( '<tr><th><label for="ace-nudge-cap">Most grouped alerts a day, per browser</label></th><td><input id="ace-nudge-cap" type="number" min="1" max="24" name="daily_cap" value="%d" class="small-text"><p class="description">Live game alerts aren\'t counted.</p></td></tr>', (int) $o['daily_cap'] );
-		printf( '<tr><th>Quiet hours (site time: London)</th><td><label>From <input type="number" min="0" max="23" name="quiet_start" value="%d" class="small-text">:00</label> <label>to <input type="number" min="0" max="23" name="quiet_end" value="%d" class="small-text">:00</label><p class="description">Grouped alerts wait until these end. Set both the same to turn this off.</p></td></tr>', (int) $o['quiet_start'], (int) $o['quiet_end'] );
+		printf( '<tr><th>Quiet hours (site time zone)</th><td><label>From <input type="number" min="0" max="23" name="quiet_start" value="%d" class="small-text">:00</label> <label>to <input type="number" min="0" max="23" name="quiet_end" value="%d" class="small-text">:00</label><p class="description">Grouped alerts wait until these end. Set both the same to turn this off.</p></td></tr>', (int) $o['quiet_start'], (int) $o['quiet_end'] );
 		$forced = Ace_Nudge_Settings::min_age() !== (int) $o['min_age'];
 		printf( '<tr><th><label for="ace-nudge-age">Age limit</label></th><td><input id="ace-nudge-age" type="number" min="0" max="99" name="min_age" value="%d" class="small-text"><p class="description">Asks for a year of birth before following or signing up. Use 0 for no age check. Order updates aren\'t age checked.%s</p></td></tr>', (int) $o['min_age'], $forced ? ' <strong>This site\'s code sets it to ' . (int) Ace_Nudge_Settings::min_age() . ', which takes priority.</strong>' : '' );
 		printf( '<tr><th>Newsletter</th><td><label><input type="checkbox" name="newsletter" value="1" %s> Offer the newsletter sign-up</label><p class="description">Switch off if the site has its own newsletter.</p></td></tr>', checked( ! empty( $o['newsletter'] ), true, false ) );
@@ -216,10 +216,10 @@ class Ace_Nudge_Admin {
 	}
 
 	public static function save() {
-		check_admin_referer( 'ace_nudge_save' );
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( 'Not allowed.' );
+			wp_die( 'Not allowed.', '', array( 'response' => 403 ) );
 		}
+		check_admin_referer( 'ace_nudge_save' );
 		$hour = fn( $k, $d ) => isset( $_POST[ $k ] ) ? min( 23, max( 0, (int) $_POST[ $k ] ) ) : $d;
 		update_option( Ace_Nudge_Settings::OPTION, array(
 			'post_types'  => array_values( array_filter( array_map( 'sanitize_key', (array) ( $_POST['post_types'] ?? array() ) ), 'post_type_exists' ) ),
@@ -242,10 +242,10 @@ class Ace_Nudge_Admin {
 	public static function remove() {
 		global $wpdb;
 		$id = (int) ( $_GET['id'] ?? 0 );
-		check_admin_referer( 'ace_nudge_remove_' . $id );
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( 'Not allowed.' );
+			wp_die( 'Not allowed.', '', array( 'response' => 403 ) );
 		}
+		check_admin_referer( 'ace_nudge_remove_' . $id );
 		$sub = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Ace_Nudge_Store::t( 'subscribers' ) . ' WHERE id = %d', $id ) );
 		if ( $sub ) {
 			Ace_Nudge_Store::withdraw( $sub, 'removed_by_admin' );

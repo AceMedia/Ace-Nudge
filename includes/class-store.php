@@ -109,13 +109,19 @@ class Ace_Nudge_Store {
 		return $words[ $channel ] ?? '';
 	}
 
+	/** The version recorded with each log entry. A site that changes its wording through ace_nudge_wording versions it here. */
+	public static function wording_version() {
+		return substr( (string) apply_filters( 'ace_nudge_wording_version', self::WORDING_VERSION ), 0, 30 );
+	}
+
+	/** Returns whether the entry was written, so a caller that must not proceed without evidence can check. */
 	public static function log( $subject, $channel, $action, $age_confirmed = false, $wording = '' ) {
 		global $wpdb;
-		$wpdb->insert( self::t( 'consent_log' ), array(
+		return (bool) $wpdb->insert( self::t( 'consent_log' ), array(
 			'subject_hash'    => $subject,
 			'channel'         => $channel,
 			'action'          => $action,
-			'wording_version' => self::WORDING_VERSION,
+			'wording_version' => self::wording_version(),
 			'wording'         => self::wording( $wording ?: $channel ),
 			'age_confirmed'   => $age_confirmed ? 1 : 0,
 			'created_at'      => current_time( 'mysql', true ),
@@ -143,6 +149,35 @@ class Ace_Nudge_Store {
 			return null;
 		}
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'subscribers' ) . ' WHERE id = %d', $id ) );
+	}
+
+	public static function add_follow( $id, $type, $object, array $meta ) {
+		global $wpdb;
+		return (bool) $wpdb->query( $wpdb->prepare(
+			'INSERT IGNORE INTO ' . self::t( 'follows' ) . ' (subscriber_id, type, object_id, meta, created_at) VALUES (%d, %s, %s, %s, %s)',
+			$id, $type, $object, wp_json_encode( $meta ), current_time( 'mysql', true )
+		) );
+	}
+
+	/**
+	 * Someone who is already active (a customer who opted into product emails, say) asked for the
+	 * newsletter and confirmed it. Turns their stored request into the real follows. Returns whether
+	 * there was a request to turn, so the caller knows to log the grant.
+	 */
+	public static function activate_newsletter( $sub ) {
+		global $wpdb;
+		$f   = self::t( 'follows' );
+		$req = $wpdb->get_row( $wpdb->prepare( "SELECT object_id, meta FROM $f WHERE subscriber_id = %d AND type = 'digestreq' LIMIT 1", $sub->id ) );
+		if ( ! $req ) {
+			return false;
+		}
+		$meta = (array) json_decode( (string) $req->meta, true );
+		self::add_follow( $sub->id, 'digest', 'weekly' === $req->object_id ? 'weekly' : 'daily', array() );
+		foreach ( (array) ( $meta['cats'] ?? array() ) as $cat ) {
+			self::add_follow( $sub->id, 'category', (string) (int) $cat, array() );
+		}
+		$wpdb->delete( $f, array( 'subscriber_id' => $sub->id, 'type' => 'digestreq' ), array( '%d', '%s' ) );
+		return true;
 	}
 
 	/** Withdrawal erases the subscription and its follows. Only the hashed log entry stays. */

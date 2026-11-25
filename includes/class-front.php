@@ -43,12 +43,13 @@ class Ace_Nudge_Front {
 		$sub = Ace_Nudge_Store::subscriber_from_token( $token );
 		if ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
 			if ( 'confirm' === $action ) {
-				// Only a pending email request can be confirmed. Anything else gets no thanks and no consent entry.
-				if ( ! $sub || 'email' !== $sub->channel ) {
+				// Only an email request can be confirmed. Anything else gets no thanks and no consent entry.
+				if ( ! $sub || 'email' !== $sub->channel || Ace_Nudge_Store::is_suppressed( (string) $sub->email ) ) {
 					wp_die( 'This confirmation link is not valid, or has expired. Please sign up again.', Ace_Nudge_Settings::brand()['name'], array( 'response' => 400 ) );
 				}
-				if ( 'active' !== $sub->status ) {
-					$wpdb->update( Ace_Nudge_Store::t( 'subscribers' ), array( 'status' => 'active' ), array( 'id' => $sub->id ) );
+				// The status change is conditional, so two clicks at once (a double tap, a mail scanner) log one grant.
+				$changed = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ace_Nudge_Store::t( 'subscribers' ) . " SET status = 'active' WHERE id = %d AND status = 'pending'", $sub->id ) );
+				if ( $changed || ( 'active' === $sub->status && Ace_Nudge_Store::activate_newsletter( $sub ) ) ) {
 					Ace_Nudge_Store::log( $sub->endpoint_hash, 'email', 'granted', true );
 				}
 			} elseif ( $sub ) {
@@ -93,7 +94,8 @@ class Ace_Nudge_Front {
 	/** The main categories by posts. Older and newer terms can share a name, so those are merged. */
 	public static function top_categories() {
 		$top = array();
-		foreach ( get_terms( array( 'taxonomy' => Ace_Nudge_Settings::menu_taxonomies() ?: array( 'category' ), 'parent' => 0, 'hide_empty' => true, 'orderby' => 'count', 'order' => 'DESC', 'number' => 30 ) ) as $term ) {
+		$terms = get_terms( array( 'taxonomy' => Ace_Nudge_Settings::menu_taxonomies() ?: array( 'category' ), 'parent' => 0, 'hide_empty' => true, 'orderby' => 'count', 'order' => 'DESC', 'number' => 30 ) );
+		foreach ( is_wp_error( $terms ) ? array() : $terms as $term ) {
 			$label = html_entity_decode( $term->name );
 			if ( 0 === stripos( $label, 'uncategori' ) ) {
 				continue;
@@ -161,6 +163,10 @@ class Ace_Nudge_Front {
 			'mode'    => defined( 'ACE_NUDGE_SHOW_ALL' ) && ACE_NUDGE_SHOW_ALL ? 'on' : ace_nudge_mode(),
 			'rest'    => esc_url_raw( rest_url( 'ace-nudge/v1/' ) ),
 			'sw'      => esc_url_raw( home_url( '/?ace_nudge_sw=1' ) ),
+			// The service worker's scope: the site's own path, so a site in a subdirectory registers under it.
+			'scope'   => (string) ( wp_parse_url( home_url( '/' ), PHP_URL_PATH ) ?: '/' ),
+			// How a site's own prices or numbers are written. See docs/hooks.md (ace_nudge_value_format).
+			'format'  => (array) apply_filters( 'ace_nudge_value_format', array() ),
 			'vapid'   => Ace_Nudge_Push::keys()['public'],
 			'targets' => $targets,
 			'categories' => self::top_categories(),
@@ -216,6 +222,6 @@ class Ace_Nudge_Front {
 	 */
 	private static function bell_slot( $selector ) {
 		$svg = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6v-5a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>';
-		echo '<script id="ace-nudge-bell-slot">(function(s,h){try{var t=document.querySelector(s);if(!t||document.querySelector(".ace-nudge-bell"))return;var b=document.createElement("button");b.type="button";b.className="ace-nudge-bell ace-nudge-bell--slot";b.setAttribute("aria-label","Alerts and newsletter");b.title="Alerts and newsletter";b.innerHTML=h;t.before(b);}catch(e){}})(' . wp_json_encode( $selector ) . ',' . wp_json_encode( $svg . '<span class="ace-nudge-bell__count" hidden></span>' ) . ');</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput
+		echo '<script id="ace-nudge-bell-slot">(function(s,h){try{var t=document.querySelector(s);if(!t||document.querySelector(".ace-nudge-bell"))return;var b=document.createElement("button");b.type="button";b.className="ace-nudge-bell ace-nudge-bell--slot";b.setAttribute("aria-label","Alerts and newsletter");b.title="Alerts and newsletter";b.innerHTML=h;t.before(b);}catch(e){}})(' . wp_json_encode( $selector, JSON_HEX_TAG | JSON_HEX_AMP ) . ',' . wp_json_encode( $svg . '<span class="ace-nudge-bell__count" hidden></span>', JSON_HEX_TAG | JSON_HEX_AMP ) . ');</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput
 	}
 }

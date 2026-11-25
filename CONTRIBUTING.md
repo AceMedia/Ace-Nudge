@@ -15,7 +15,7 @@ Issues and pull requests are welcome at https://github.com/AceMedia/Ace-Nudge.
 
 ## Trying a change
 
-Set `ACE_NUDGE_MODE` to `test`, visit the site with `?ace_nudge_preview=1`, and see [the developer guide](docs/developer-guide.md) for local development notes. Check PHP with `php -l`, and run `wp ace-nudge status` and `wp ace-nudge preview` to make sure the commands still load.
+Set `ACE_NUDGE_MODE` to `test`, visit the site with `?ace_nudge_preview=1`, and see [the developer guide](docs/developer-guide.md) for local development notes. Check PHP with `php -l`, run `php tests/run.php` and `node tests/price-format.js`, and run `wp ace-nudge status` and `wp ace-nudge preview` to make sure the commands still load.
 
 ## Licence of contributions
 

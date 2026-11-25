@@ -31,12 +31,25 @@ class Ace_Nudge_Push {
 			$key = self::new_key();
 			openssl_pkey_export( $key, $pem );
 			$keys = array( 'private' => $pem, 'public' => self::b64( self::raw_public( $key ) ) );
-			update_option( 'ace_nudge_vapid', $keys, false );
+			// add_option fails if another request saved a pair first; keep that one, or subscriptions made with it would stop working.
+			if ( ! add_option( 'ace_nudge_vapid', $keys, '', false ) ) {
+				$saved = get_option( 'ace_nudge_vapid' );
+				if ( is_array( $saved ) && ! empty( $saved['private'] ) ) {
+					return $saved;
+				}
+				update_option( 'ace_nudge_vapid', $keys, false );
+			}
 		}
 		return $keys;
 	}
 
+	/** One record of 4096 bytes less the 16 byte tag, the padding byte and the 86 byte header (RFC 8188). */
+	const MAX_PAYLOAD = 3993;
+
 	public static function encrypt( $payload, $p256dh, $auth ) {
+		if ( strlen( $payload ) > self::MAX_PAYLOAD ) {
+			return null;
+		}
 		$ua_public = self::unb64( $p256dh );
 		$ua_pem    = "-----BEGIN PUBLIC KEY-----\n" . chunk_split( base64_encode( hex2bin( self::SPKI ) . $ua_public ), 64, "\n" ) . "-----END PUBLIC KEY-----\n";
 		$local     = self::new_key();
@@ -101,7 +114,7 @@ class Ace_Nudge_Push {
 		if ( null === $body ) {
 			return 0;
 		}
-		$res = wp_remote_post( $sub->endpoint, array(
+		$res = wp_safe_remote_post( $sub->endpoint, array(
 			'timeout' => 10,
 			'headers' => array(
 				'Authorization'    => self::vapid_header( $sub->endpoint ),
