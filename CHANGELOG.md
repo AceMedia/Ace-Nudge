@@ -4,7 +4,7 @@ All notable changes to Ace NUDGE. Each released version has its own section, hea
 
 ## 0.7.4
 
-Released 2026-11-25 (not yet tagged).
+Released 2026-11-25.
 
 A bug-fix release from a code audit. No database change; existing subscribers, tokens and consent log entries are untouched.
 
